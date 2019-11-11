@@ -1,4 +1,4 @@
-classdef chameleon < laser & loghandler
+classdef chameleon <  laserControl.laser & loghandler
 %%  chameleon - control class for Coherent Chameleon lasers
 %
 %
@@ -7,7 +7,7 @@ classdef chameleon < laser & loghandler
 %
 % Laser control component for Chameleon lasers from Coherent. 
 %
-% For docs, please see the laser abstract class. 
+% For docs, please see the laserControl.laser abstract class. 
 %
 %
 % Rob Campbell - Basel 2017

@@ -1,4 +1,4 @@
-classdef maitai < laser & loghandler
+classdef maitai < laserControl.laser & loghandler
 %%  maitai - control class for maitai lasers
 %
 %
@@ -9,7 +9,7 @@ classdef maitai < laser & loghandler
 % IMPORTANT: In the SpectraPhysics GUI you should set the baudrate
 % switch to "9600".
 %
-% For docs, please see the laser abstract class. 
+% For docs, please see the laserControl.laser abstract class. 
 %
 %
 % Rob Campbell - Basel 2016
