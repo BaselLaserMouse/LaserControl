@@ -35,7 +35,7 @@ classdef maitai < laser & loghandler
             obj.friendlyName = 'MaiTai';
 
             fprintf('\nSetting up MaiTai laser communication on serial port %s\n', serialComms);
-            BakingTray.utils.clearSerial(serialComms)
+            laserControl.clearSerial(serialComms)
             obj.controllerID=serialComms;
             success = obj.connect;
 

@@ -63,7 +63,7 @@ classdef chameleon < laser & loghandler
             obj.friendlyName = 'Chameleon';
 
             fprintf('\nSetting up Chameleon laser communication on serial port %s\n', serialComms);
-            BakingTray.utils.clearSerial(serialComms)
+            laserControl.clearSerial(serialComms)
             obj.controllerID=serialComms;
             success = obj.connect;
 
