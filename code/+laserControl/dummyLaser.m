@@ -1,4 +1,4 @@
-classdef dummyLaser < laser %& loghandler
+classdef dummyLaser < laserControl.laser
 %%  dummyLaser
 %
 % Dummy laser control class for debugging or running in, say, a simulated ScanImage session. 
