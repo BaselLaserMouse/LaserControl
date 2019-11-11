@@ -29,12 +29,11 @@ classdef laser_view < laserControl.gui.child_view
     end
 
     methods
-        function obj = laser_view(hBT,parentView)
+        function obj = laser_view(hLaser,parentView)
             obj = obj@laserControl.gui.child_view;
 
             if nargin>0
-                %TODO: all the obvious checks needed
-                obj.model = hBT;
+                obj.model.laser = hLaser;
             else
                 fprintf('Can''t build laser_view: please supply hBT as an input argument\n');
                 return
@@ -85,10 +84,6 @@ classdef laser_view < laserControl.gui.child_view
             obj.listeners{4}=addlistener(obj.model.laser, 'isLaserModeLocked','PostSet', @obj.updateGUI);
             obj.listeners{5}=addlistener(obj.model.laser, 'isLaserConnected','PostSet', @obj.updateGUI);
             obj.listeners{6}=addlistener(obj.model.laser, 'isLaserOn','PostSet', @obj.updateGUI);
-
-            %Disable pontentially dangerous operations during acquisition
-            obj.listeners{7}=addlistener(obj.model, 'acquisitionInProgress', 'PostSet', @obj.updateAcqMode);
-
 
 
             %TODO: add a status panel that reports the string from laser.isReady
@@ -400,14 +395,8 @@ classdef laser_view < laserControl.gui.child_view
         end
 
         function updateAcqMode(obj,~,~)
-            %Disable shutter and on buttons during acquisition
-            if obj.model.acquisitionInProgress
-                obj.buttonShutter.Enable='off';
-                obj.buttonOnOff.Enable='off';
-            else
-                obj.buttonShutter.Enable='on';
-                obj.buttonOnOff.Enable='on';
-            end
+            %Disable shutter and on buttons during acquisition?
+            return
         end %updateAcqMode
 
     end %end hidden methods
