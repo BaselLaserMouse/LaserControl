@@ -1,4 +1,4 @@
-function hLaser=startLaserControl
+function startLaserControl
 
     settings = laserControl.settings.readSettings;
     hLaser = [];
@@ -9,9 +9,10 @@ function hLaser=startLaserControl
 
 
     hLaser = buildLaserComponent(settings.laser.type,settings.laser.COM);
+    assignin('base','hLaser',hLaser)
 
-
-
+    hLaserCtl=laserControl.gui.laser_view(hLaser);
+    assignin('base','hLaserCtl',hLaserCtl)
 
 
 

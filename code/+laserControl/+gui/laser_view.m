@@ -156,7 +156,6 @@ classdef laser_view < laserControl.gui.child_view
             fprintf('Finalising laser GUI state\n')
             obj.model.laser.isPoweredOn; %Not pretty, but we run this to ensure the properties are set correctly
             obj.updateGUI;
-            obj.updateAcqMode; %Ensure buttons are in the right state (enabled/disabled)
 
             %Set the target wavelength to equal the current wavelength
             obj.model.laser.targetWavelength=obj.model.laser.currentWavelength;
@@ -379,7 +378,6 @@ classdef laser_view < laserControl.gui.child_view
             if ~isvalid(obj.model.laser)
                 return
             end
-            %TODO: let's see if this improves stability of the serial comms
             if obj.model.laser.hC.BytesAvailable>0
                 fprintf('Skipping updateCurrentWavelength timer callback due to bytes still present for reading in serial buffer\n')
                 return
@@ -393,11 +391,6 @@ classdef laser_view < laserControl.gui.child_view
                 fprintf('Failed to update laser GUI with error: %s\n', ME.message)
             end
         end
-
-        function updateAcqMode(obj,~,~)
-            %Disable shutter and on buttons during acquisition?
-            return
-        end %updateAcqMode
 
     end %end hidden methods
 
