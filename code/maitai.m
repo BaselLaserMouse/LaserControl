@@ -1,36 +1,58 @@
-classdef maitai < laser
-%%  maitai
+classdef maitai < laser & loghandler
+%%  maitai - control class for maitai lasers
 %
-% Laser control class for  SpectraPhysics MaiTai lasers.
-% In the SpectraPhysics GUI you should set the baudrate switch to "9600".
 %
-% For more info see the abstract class "laser".
+% Example
+% M = maitai('COM1');
 %
-
-
+% Laser control component for MaiTai lasers from SpectraPhysics. 
+% IMPORTANT: In the SpectraPhysics GUI you should set the baudrate
+% switch to "9600".
+%
+% For docs, please see the laser abstract class. 
+%
+%
+% Rob Campbell - Basel 2016
 
     methods
 
         % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         %constructor
-        function obj = maitai(serialComms)
-        % function obj = maitai(serialComms)
+        function obj = maitai(serialComms,logObject)
+        % function obj = maitai(serialComms,logObject)
+        % serialComms is a string indicating the serial port we should connect to
+
+            if nargin<1
+                error('maitai requires at least one input argument: you must supply the laser COM port as a string')
+            end
+            %Attach log object if it is supplied
+            if nargin>1
+                obj.attachLogObject(logObject);
+            end
 
             obj.maxWavelength=1100;
             obj.minWavelength=700;
+            obj.friendlyName = 'MaiTai';
 
-            fprintf('Setting up MaiTai laser communication on serial port %s\n', serialComms);
-            laserUtils.clearSerial(serialComms)
+            fprintf('\nSetting up MaiTai laser communication on serial port %s\n', serialComms);
+            BakingTray.utils.clearSerial(serialComms)
             obj.controllerID=serialComms;
             success = obj.connect;
 
             if ~success
                 fprintf('Component maitai failed to connect to laser over the serial port.\n')
+                return
                 %TODO: is it possible to delete it here?
             end
 
             %Set the target wavelength to equal the current wavelength
             obj.targetWavelength=obj.currentWavelength;
+
+            %Report connection and humidity
+            fprintf('Connected to SpectraPhysics laser on %s, laser humidity is %0.2f%%\n\n', ...
+             serialComms, obj.readHumidity)
+
+            
         end %constructor
 
 
@@ -38,7 +60,7 @@ classdef maitai < laser
         %destructor
         function delete(obj)
             fprintf('Disconnecting from MaiTai laser\n')
-            if ~isempty(obj.hC) && isa(obj.hC,'serial')
+            if ~isempty(obj.hC) && isa(obj.hC,'serial') && isvalid(obj.hC)
                 fprintf('Closing serial communications with MaiTai laser\n')
                 flushinput(obj.hC) %There may be characters left in the buffer because of the timers used to poll the laser
                 fclose(obj.hC);
@@ -48,14 +70,27 @@ classdef maitai < laser
 
 
         function success = connect(obj)
-            obj.hC=serial(obj.controllerID,'BaudRate',9600);
-            fopen(obj.hC); %TODO: could test the output to determine if the port was opened
+            obj.hC=serial(obj.controllerID,'BaudRate',9600,'TimeOut',5);
+            try 
+                fopen(obj.hC); %TODO: could test the output to determine if the port was opened
+            catch ME
+                fprintf(' * ERROR: Failed to connect to MaiTai:\n%s\n\n', ME.message)
+                success=false;
+                return
+            end
+
             flushinput(obj.hC) % Just in case
-            if isempty(obj.hC) %TODO: better tests: query the version number or something like that
+            if isempty(obj.hC) 
                 success=false;
             else
-                success=true;
-            end 
+                [~,s] = obj.isShutterOpen;
+                if s==true
+                    success=true;
+                else
+                    fprintf('Failed to communicate with maitai laser\n');
+                    success=false;
+                end
+            end
             obj.isLaserConnected=success;
         end %connect
 
@@ -83,14 +118,17 @@ classdef maitai < laser
 
 
         function success = turnOff(obj)
+            obj.closeShutter; % Older MaiTai lasers seem not to do this by default 
             success=obj.sendAndReceiveSerial('OFF',false);
             if success
                 obj.isLaserOn=false;
             end
         end
 
-        function powerOnState = isPoweredOn(obj)
-            if obj.readPumpPower>10
+        function [powerOnState,details] = isPoweredOn(obj)
+            pPower=obj.readPumpPower;
+            details=num2str(pPower);
+            if pPower>10
                 powerOnState=true;
             else
                 powerOnState=false;
@@ -105,6 +143,11 @@ classdef maitai < laser
             [shutterState,success] = obj.isShutterOpen;
             if ~success
                 msg='No connection to laser';
+                obj.isLaserReady=false;
+                return
+            end
+            if ~obj.isPoweredOn
+                msg='Laser seems not to be powered on. Pump power is very low';
                 obj.isLaserReady=false;
                 return
             end
@@ -171,14 +214,14 @@ classdef maitai < laser
             if ~success
                 shutterState=[];
                 return
-            end            
+            end
             shutterState = str2double(reply); %if open the command returns 1
             obj.isLaserShutterOpen=shutterState;
         end
 
 
         function wavelength = readWavelength(obj) 
-            [success,wavelength]=obj.sendAndReceiveSerial('READ:WAVELENGTH??');
+            [success,wavelength]=obj.sendAndReceiveSerial('READ:WAVELENGTH??'); 
             if ~success
                 wavelength=[];
                 return
@@ -189,12 +232,11 @@ classdef maitai < laser
 
 
         function success = setWavelength(obj,wavelengthInNM)
-
             success=false;
             if length(wavelengthInNM)>1
                 fprintf('wavelength should be a scalar')
                 return
-            end            
+            end
             if ~obj.isTargetWavelengthInRange(wavelengthInNM)
                 return
             end
@@ -210,7 +252,6 @@ classdef maitai < laser
    
 
         function tuning = isTuning(obj)
-
             %First get the desired (setpoint) wavelength
             [success,wavelengthDesired]=obj.sendAndReceiveSerial('WAVELENGTH?');
             if ~success
@@ -228,7 +269,7 @@ classdef maitai < laser
             end
 
         end
-        
+
 
         function laserPower = readPower(obj)
             [success,laserPower]=obj.sendAndReceiveSerial('READ:POWER?');
@@ -241,9 +282,49 @@ classdef maitai < laser
         end
 
 
+        function laserID = readLaserID(obj)
+            [success,laserID]=obj.sendAndReceiveSerial('*IDN?');
+            if ~success
+                laserID=[];
+                return
+            end
+        end
+
+
+        function laserStats = returnLaserStats(obj)
+            lambda = obj.readWavelength;
+            outputPower = obj.readPower;
+            pumpPower = obj.readPumpPower;
+            pumpCurrent = obj.readPumpLaserCurrent;
+            humidity = obj.readHumidity;
+
+            laserStats=sprintf('wavelength=%dnm,outputPower=%dmW,pumpPower=%dmW,pumpCurrent=%0.1f,humidity=%0.1f', ...
+                lambda,outputPower,pumpPower,pumpCurrent,humidity);
+        end
+
+        function success=setWatchDogTimer(obj,value)
+            cmd=sprintf('TIMER:WATCHDOG %d',round(value));
+            success=obj.sendAndReceiveSerial(cmd,false);
+            if ~success
+                return
+            end
+            [success,currentValue]=obj.sendAndReceiveSerial('TIMER:WATCHDOG?');
+            if ~success
+                return
+            end
+
+            currentValue = round(str2double(currentValue));
+            if currentValue ~= value
+                fprintf('You asked for a MaiTai watchdog timer value %d seconds but the set value is reported as being %d seconds\n',...
+                    value,currentValue)
+                success=false;
+            end
+        end
+        
 
         % MaiTai specific
         function laserPower = readPumpPower(obj)
+            % Return pump power as a scalar
             [success,laserPower]=obj.sendAndReceiveSerial('READ:PLASER:POWER?');
             if ~success
                 laserPower=[];
@@ -298,24 +379,6 @@ classdef maitai < laser
             end
         end
 
-        function success=setWatchDogTimer(obj,value)
-            cmd=sprintf('TIMER:WATCHDOG %d',round(value));
-            success=obj.sendAndReceiveSerial(cmd,false);
-            if ~success
-                return
-            end
-            [success,currentValue]=obj.sendAndReceiveSerial('TIMER:WATCHDOG?');
-            if ~success
-                return
-            end
-
-            currentValue = round(str2double(currentValue));
-            if currentValue ~= value
-                fprintf('You asked for a MaiTai watchdog timer value %d seconds but the set value is reported as being %d seconds\n',...
-                    value,currentValue)
-                success=false;
-            end
-        end
 
 
         % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -328,6 +391,7 @@ classdef maitai < laser
             if isempty(commandString) || ~ischar(commandString)
                 reply='';
                 success=false;
+                obj.logMessage(inputname(1),dbstack,6,'maitai.sendReceiveSerial command string not valid.')
                 return
             end
 
@@ -343,22 +407,30 @@ classdef maitai < laser
             end
 
             reply=fgets(obj.hC);
+            doFlush=1; %TODO: not clear right now if flushing the buffer is even the correct thing to do. 
             if obj.hC.BytesAvailable>0
-                fprintf('Read in from the MaiTai buffer but there are still %d BytesAvailable\n',obj.hC.BytesAvailable)
+                if doFlush
+                    fprintf('Read in from the MaiTai buffer using command "%s" but there are still %d BytesAvailable. Flushing.\n', ...
+                        commandString, obj.hC.BytesAvailable)
+                    flushinput(obj.hC)
+                else
+                    fprintf('Read in from the MaiTai buffer using command "%s" but there are still %d BytesAvailable. NOT FLUSHING.\n', ...
+                        commandString, obj.hC.BytesAvailable)
+                end
             end
+
             if ~isempty(reply)
                 reply(end)=[];
             else
                 msg=sprintf('Laser serial command %s did not return a reply\n',commandString);
                 success=false;
+                obj.logMessage(inputname(1),dbstack,6,msg)
                 return
             end
 
-
-            %TODO: improve check of success?
             success=true;
         end
-        
-    end
 
-end
+    end %close methods
+
+end %close classdef 

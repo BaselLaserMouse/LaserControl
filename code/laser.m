@@ -4,20 +4,35 @@ classdef (Abstract) laser < handle
 % The laser abstract class is a software entity that represents the physical
 % laser that is used to scan the sample. 
 %
-% The laser abstract class declares methods and properties that are common to all lasers. 
-
+% The laser abstract class declares methods and properties that are used by the 
+% BakingTray class to check the laser state (is the laser modelocked? is it switched
+% on?). The user also interacts with the laser to set and check wavelength and to
+% change the shutter state, etc. Classes the control the laser must inherit laser. 
+% Objects that inherit laser are "attached" to instances of BakingTray using 
+% BakingTray.attachLaser. This method adds an instance of a class that inherits 
+% laser to the BakingTray.laser property. 
+%
+% An example of a class that inherits laser is MaiTai.
+%
+% Rob Campbell - Basel 2016
 
 
     properties 
 
-        hC  % A handle to the hardware object or port (e.g. COM port)
-        controllerID % COM port ID string
+        hC  %A handle to the hardware object or port (e.g. COM port) used to 
+            %control the laser.
+
+        controllerID % The information required by the method that connects to the 
+                     % the controller at connect-time. This can be specified in whatever
+                     % way is most suitable for the hardware at hand. 
+                     % e.g. COM port ID string
         maxWavelength=0 %The longest wavelength the laser can be tuned to in nm
         minWavelength=0 %The longest wavelength the laser can be tuned to in nm
+        friendlyName = '' % This string is displayed in the GUI window title. Shouldn't be too long. e.g. could be "MaiTai"
     end %close public properties
 
     properties (Hidden)
-        parent  %A copy of the parent object (here for future-proofing)
+        parent  %A copy of the parent object (likely BakingTray) to which this component is attached
     end %close hidden properties
 
 
@@ -99,7 +114,7 @@ classdef (Abstract) laser < handle
         % Outputs
         % success - true or false depending on whether the command succeeded
 
-        powerOnState = isPoweredOn(obj)
+        [powerOnState,details] = isPoweredOn(obj)
         % isPoweredOn
         %
         % Behavior
@@ -110,6 +125,7 @@ classdef (Abstract) laser < handle
         %
         % Outputs
         % powerOnState - true/false. If powered on, set to true.
+        % details - optional second argument containing a string with further information
 
 
 
@@ -235,13 +251,51 @@ classdef (Abstract) laser < handle
         % Behavior
         % The laser's watchdog timer (present on MaiTai lasers, for instance) causes
         % the laser switch off if it has not communicated with the PC for a given 
-        % period of time.
+        % period of time. BakingTray uses this setting to automatically power off
+        % the laser should acquisition have stopped in an unexpected way. For example,
+        % a hard-crash of MATLAB, a machine reboot, or locking up of the acquisition
+        % for some reason. If your laser doesn't have a watchdog timer, you should
+        % define this method such that it takes an input argument and returns true. 
+        % BakingTray will still be able to turn off the laser if acquisition finishes
+        % normally
         %
         % Inputs
         % timeInSeconds - The time-out beyond which the laser powers off. This should
         %                 be comfortably longer than the longest time it might take to
         %                 acquire a section. e.g. 40 minutes should be fine. 
 
+
+
+        laserStats = returnLaserStats(obj)
+        % returnLaserStats
+        %
+        % Behavior
+        % It's probably not a bad idea to monitor the status of the laser over time. 
+        % This is worth doing because running these things 24/7, as we do, is rather
+        % hard on them. So we can at least monitor the mood of our laser periodically
+        % along with the acquisition of data. This method should simply return a 
+        % a string and it's output will just be logged to a file along with other 
+        % acquisition progress data. If you don't care about logging laser status 
+        % information, you just return an empty string. If you wish to log laser 
+        % information then it makes sense to return it in a consistent and machine 
+        % readble way. e.g. your string could be:
+        % 'outputPower=1700mw,pumpPower=12000mw,wavelength=900nm,humidity=2\n'\
+        %
+        % Avoid "%" signs in your string. They screw up subsequent sprintf lines
+
+
+        laserID = readLaserID(obj)
+        % readLaserID
+        %
+        % Behavior
+        % Returns a string that contains the laser serial number, ID, etc. 
+        % If your laser has a serial command that returns this information then you
+        % may use this. Failing that, you could hard-code the details into the 
+        % class or have it read the details from a text file you make. If you really
+        % don't care about logging this, then your method should just return the laser
+        % model as a string. 
+        %
+        % You choose...
 
     end %close abstract methods
 
