@@ -20,7 +20,6 @@ classdef laser_view < laserControl.gui.child_view
     end
 
     properties(Hidden)
-        wavelengthWatcherUpdateInterval=0.5 %If the laser is tuning, the GUI is updated with this period (in seconds)
         currentWavelengthTimer %Regularly reads wavelength until settled
         currentWavelengthString='Current Wavelength: %d nm' %Used in the sprintf for the current wavelength
         laserViewUpdateInterval=2 %Update select GUI elements every this many seconds (e.g. modelock state)
@@ -61,7 +60,13 @@ classdef laser_view < laserControl.gui.child_view
             fprintf('Setting up laser GUI timers\n')
             obj.currentWavelengthTimer = timer;
             obj.currentWavelengthTimer.Name = 'update current wavelength updater';
-            obj.currentWavelengthTimer.StartDelay = obj.wavelengthWatcherUpdateInterval;
+            if strcmp(obj.model.laser.friendlyName,'MaiTai')
+                %MaiTai tunes slowly so update slowly or display may get
+                %stuck
+                obj.currentWavelengthTimer.StartDelay = 4;
+            else
+                obj.currentWavelengthTimer.StartDelay = 1;
+            end
             obj.currentWavelengthTimer.TimerFcn = @(~,~) [] ;
             obj.currentWavelengthTimer.StopFcn = @(~,~) obj.updateCurrentWavelength;
             obj.currentWavelengthTimer.ExecutionMode = 'singleShot';
@@ -225,11 +230,9 @@ classdef laser_view < laserControl.gui.child_view
         function setReadWavelengthTextPanel(obj,~,~)
             set(obj.currentWavelengthText,'String',sprintf(obj.currentWavelengthString,round(obj.model.laser.readWavelength)))
             %Now start a timer that will keep updating the wavelength text box until the laser has settled
-            %It does this because readWavelength updates the property that fires this callback.
+            %It does this because laser.readWavelength updates the laser.currentWavelength property that fires this callback.
             %This callback then calls readWavelength with a delay via the timer and so there is a 
             %while loop. 
-            
-            
             if isa(obj.currentWavelengthTimer,'timer') && ...
                 strcmp(obj.currentWavelengthTimer.Running,'off')
                 start(obj.currentWavelengthTimer)
@@ -262,6 +265,7 @@ classdef laser_view < laserControl.gui.child_view
 
     methods (Hidden)
         %This function restarts the timer and updates the GUI until the wavelength has settled
+        %see also: obj.setReadWavelengthTextPanel
         function updateCurrentWavelength(obj)
             if ~obj.model.laser.isControllerConnected
                 return
@@ -272,7 +276,7 @@ classdef laser_view < laserControl.gui.child_view
                 return
             end
 
-            W=obj.model.laser.readWavelength; %updates obj.model.laser.currentWavelength
+            W=obj.model.laser.readWavelength; %updates obj.model.laser.currentWavelength which is what triggers this timer callback
             set(obj.currentWavelengthText,'String',sprintf(obj.currentWavelengthString,round(W)))
         end
 
@@ -375,18 +379,19 @@ classdef laser_view < laserControl.gui.child_view
         end %updateGUI
 
         function regularGUIupdater(obj,~,~)
+            % TODO: this callback blocks MATLAB for a short period of time
             if ~isvalid(obj.model.laser)
                 return
             end
             if obj.model.laser.hC.BytesAvailable>0
-                fprintf('Skipping updateCurrentWavelength timer callback due to bytes still present for reading in serial buffer\n')
+                fprintf('Skipping regularGUIupdater timer callback due to bytes still present for reading in serial buffer\n')
                 return
             end
 
             try
                 obj.updateModeLockElements
                 obj.updatePowerText
-                obj.updateCurrentWavelength
+                %obj.updateCurrentWavelength %TODO: hopefully we can remove this in time
             catch ME 
                 fprintf('Failed to update laser GUI with error: %s\n', ME.message)
             end
