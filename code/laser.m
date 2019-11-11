@@ -29,6 +29,7 @@ classdef (Abstract) laser < handle
         maxWavelength=0 %The longest wavelength the laser can be tuned to in nm
         minWavelength=0 %The longest wavelength the laser can be tuned to in nm
         friendlyName = '' % This string is displayed in the GUI window title. Shouldn't be too long. e.g. could be "MaiTai"
+        aom          % This will optionally be populated with an object of class aom.
     end %close public properties
 
     properties (Hidden)
