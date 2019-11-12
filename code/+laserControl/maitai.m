@@ -32,7 +32,7 @@ classdef maitai < laserControl.laser & loghandler
 
             obj.maxWavelength=1100;
             obj.minWavelength=700;
-            obj.friendlyName = 'MaiTai';
+            obj.friendlyName = 'MaiTai'; % Do not edit: GUI uses this
 
             fprintf('\nSetting up MaiTai laser communication on serial port %s\n', serialComms);
             laserControl.clearSerial(serialComms)
