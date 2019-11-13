@@ -91,8 +91,8 @@ classdef MPDSaom < laserControl.aom
 
 
         function linkToLaser(obj,thisLaser)
-            if ~isa(thisLaser,'laser')
-                fprintf('Error: linkToLaser must be supplied with an object that inherits class "laser"\n')
+            if ~isa(thisLaser,'laserControl.laser')
+                fprintf('Error: linkToLaser must be supplied with an object that inherits class "laserControl.laser"\n')
                 return
             end
             obj.laser=thisLaser;

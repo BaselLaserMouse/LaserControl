@@ -1,51 +1,71 @@
-function startLaserControl
+function varargout=startLaserControl
+% Start the laser GUI with attached AOM as an option
+%
+% startLaserControl
+%
+% Inputs
+% none
+%
+% Outputs
+% hLaserControl - object for GUI, laser, and optionally AOM.
 
-    settings = laserControl.settings.readSettings;
-    hLaser = [];
-    if isempty(settings.laser.type)
-        return
-    end
+
+% Read laser settings from file
+settings = laserControl.settings.readSettings;
+hLaser = [];
+if isempty(settings.laser.type)
+    return
+end
     
 
 
-    hLaser = buildLaserComponent(settings.laser.type,settings.laser.COM);
-    assignin('base','hLaser',hLaser)
+% Build laser
+hLaser = buildComponent(settings.laser.type,settings.laser.COM);
 
-    hLaserCtl=laserControl.gui.laser_view(hLaser);
-    assignin('base','hLaserCtl',hLaserCtl)
-
-
+% Build laser GUI
+hGUI=laserControl.gui.laser_view(hLaser);
 
 
-    function thisLaser = buildLaserComponent(laserName,varargin)
+% Optionally build the AOM and link to the laser
+if ~isempty(settings.aom.type)
+    fprintf('Connecting to AOM and linking to laser\n')
+    hAOM = buildComponent(settings.aom.type,settings.aom.COM);
+    hAOM.linkToLaser(hLaser);
+else
+    hAOM=[];
+end
 
-    validComponentSuperClassName = 'laser'; %The name of the abstract class that all laser components must inherit
+% Assign to base workspace
+hLaserControl.hLaser = hLaser;
+hLaserControl.hGUI = hGUI;
+hLaserControl.hAOM = hAOM;
+if nargout>0
+    varargout{1}=hLaserControl;
+end
 
 
-    %Build the correct object based on "laserName"
-    switch laserName
+
+
+
+
+
+
+function thisComponent = buildComponent(componentName,varargin)
+    %Build the correct object based on "componentName"
+    COMPORT = laserControl.settings.parseComPort(varargin{1});
+
+    switch componentName
         case 'dummyLaser'
-            thisLaser = dummyLaser;
+            thisComponent = laserControl.dummyLaser;
         case 'maitai'
-            COMPORT = laserControl.settings.parseComPort(varargin{1});
-            thisLaser = maitai(COMPORT);
+            thisComponent = laserControl.maitai(COMPORT);
         case 'chameleon'
-            COMPORT = laserControl.settings.parseComPort(varargin{1});
-            thisLaser = chameleon(COMPORT);
-            return
+            thisComponent = laserControl.chameleon(COMPORT);
+        case 'MPDSaom'
+            thisComponent = laserControl.MPDSaom(COMPORT);
         otherwise
             fprintf('ERROR: unknown laser component "%s" SKIPPING BUILDING\n', laserName)
-            thisLaser=[];
+            thisComponent=[];
             return
-    end
-
-
-    % Do not return component if it's not of the correct class. 
-    % e.g. this can happen if the class doesn't inherit the correct abstract class
-    if ~isa(thisLaser,validComponentSuperClassName)
-        fprintf('ERROR: constructed component %s is not of class %s. SKIPPING BUILDING.\n', ...
-         laserName, validComponentSuperClassName);
-        delete(thisLaser) %To clean up any open ports, etc
-        thisLaser = [];
     end
 

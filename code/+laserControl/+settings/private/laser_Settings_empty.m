@@ -14,8 +14,8 @@ function settings=laser_Settings
 
     %-------------------------------------------------------------------------------------------
     % AOM
-    aom.type=''; % One of: 'XXX' or left empty
-    aom.COM=[];  % COM port number on which the cutter is attached
+    aom.type=''; % 'MPDSaom' or left empty
+    aom.COM=[];  % COM port number on which the AOM is attached
 
 
     %-------------------------------------------------------------------------------------------

@@ -34,3 +34,4 @@ For that to work you will need to edit the settings file created in the SETTINGS
 * v0.5.0 - `dev` branch MPDS AOM code now interacts with AOM correctly in all major ways.
 * v0.5.5 - MPDS AOM: Power and frequency nudge up/down works. Raw power setting (the register value) works.
 * v0.6.5 - MPDS AOM: Is now linked to laser and changes frequency and power automatically.
+* v0.7.0 - startLaserControl now starts the laser and AOM.
