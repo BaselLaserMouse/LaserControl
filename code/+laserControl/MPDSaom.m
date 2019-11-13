@@ -10,8 +10,8 @@ classdef MPDSaom < laserControl.aom
 %
 % Rob Campbell - SWC 2019
 
+
     properties
-        defaultReplyTerminator='' %By default we expect reply strings to terminate with this character
     end
 
     methods
@@ -61,7 +61,7 @@ classdef MPDSaom < laserControl.aom
 
         function success = connect(obj)
             obj.hC=serial(obj.controllerID,'BaudRate',57600,'TimeOut',5,...
-                'Terminator', obj.defaultReplyTerminator);
+                'Terminator', 'CR');
             try 
                 fopen(obj.hC);
             catch ME
@@ -116,7 +116,7 @@ classdef MPDSaom < laserControl.aom
             % Round requency to two decimal places and send to driver
             frequencyInHz = round(frequencyInHz,2);
             cmd = sprintf('L1F%3.2f',frequencyInHz);
-            [s,strReturn]=obj.sendAndReceiveSerial([cmd,char(13)],char(13));
+            [s,strReturn]=obj.sendAndReceiveSerial(cmd);
             
             % Issue a warning message if the driver didn't set itself to the desired frequency
             currentFrequency = obj.readFrequency;
@@ -163,13 +163,9 @@ classdef MPDSaom < laserControl.aom
         
 
         % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        function [success,reply]=sendAndReceiveSerial(obj,commandString,replyTerminator,waitForReply)
+        function [success,reply]=sendAndReceiveSerial(obj,commandString,waitForReply)
             % Send a serial command and optionally read back the reply 
-            if nargin<3 && isempty(replyTerminator)
-                replyTerminator=obj.defaultReplyTerminator;
-            end
-
-            if nargin<4
+            if nargin<3
                 waitForReply=true;
             end
 
@@ -178,8 +174,6 @@ classdef MPDSaom < laserControl.aom
                 success=false;
                 return
             end
-
-            obj.hC.Terminator = replyTerminator;
 
             fprintf(obj.hC,commandString);
 
@@ -204,7 +198,6 @@ classdef MPDSaom < laserControl.aom
                         commandString, obj.hC.BytesAvailable)
                 end
             end
-            obj.hC.Terminator = obj.defaultReplyTerminator;
 
             if ~isempty(reply)
                 reply(end)=[];
@@ -225,11 +218,26 @@ classdef MPDSaom < laserControl.aom
 
     % MPDS-specific
     methods
-        function success = enableBlanking(obj)
-            cmd = sprintf('L1D%2.2f',powerIndB);
-            [s,strReturn]=obj.sendAndReceiveSerial([cmd,char(13)],char(13));
+
+        function success = disableAOMBlanking(obj)
+            obj.sendAndReceiveSerial('L0I0O0');
+            success = ~obj.readAOMBlankingState;
         end
-        function success = disableBlanking(obj)
+
+        function success = enableAOMBlanking(obj)
+            obj.sendAndReceiveSerial('L0I1O1');
+            success = obj.readAOMBlankingState;
+        end
+
+        function state = readAOMBlankingState(obj,statusStr)
+            if nargin<2
+                statusStr = obj.getStatusString;
+            end
+            if ~isempty(findstr(statusStr,'Blanking ON '))
+                state=true;
+            else
+                state=false;
+            end
         end
 
     end % MPDS-specific
@@ -237,13 +245,18 @@ classdef MPDSaom < laserControl.aom
     % MPDS-specific hidden
     methods (Hidden=true)
         function statusStr = getStatusString(obj)
-            % Get the status string
-            [~,statusStr]=obj.sendAndReceiveSerial('S','?');
+            % Get the status string. Annoying code because this command follows
+            % a different standard to the rest
+            obj.hC.Terminator='';
+            fprintf(obj.hC,'S'); %Because this command does not need a CR
+            obj.hC.Terminator='?'; % Yeah...
+            statusStr = fgets(obj.hC);
+            obj.hC.Terminator='CR';
             statusStr = statusStr(3:end-2); %Just to trim extra char returns
         end
 
         function reset(obj)
-            fprintf(obj.hC,'M');
+            fprintf(obj.hC,'M'); %This command needs no CR
         end
     end % hidden methods
 

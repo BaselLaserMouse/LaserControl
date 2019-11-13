@@ -31,3 +31,4 @@ For that to work you will need to edit the settings file created in the SETTINGS
 ## Version History
 * v0.0.0 - Basic MaiTai control at command line
 * v0.2.0 - Add Chameleon, settings file, GUI and GUI starter, boilerplate AOM control in `dev` branch, improve wavelength polling. 
+* v0.5.0 - `dev` branch AOM code now interacts with AOM
