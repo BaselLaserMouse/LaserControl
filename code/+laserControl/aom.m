@@ -26,10 +26,13 @@ classdef (Abstract) aom < handle
                      % the controller at connect-time. This can be specified in whatever
                      % way is most suitable for the hardware at hand. 
                      % e.g. COM port ID string
+
+        respondToChangingLaserWavelength=true %if false it does not alter AOM state when wavelength is changed
     end %close public properties
 
     properties (Hidden)
-        parent  %A copy of the parent object (likely one of class AOM) to which this component is attached
+        laser  %The laser object which the AOM class can modify goes here
+        listeners = {}
     end %close hidden properties
 
 
@@ -39,21 +42,14 @@ classdef (Abstract) aom < handle
     % property must be set to true. Failing to do this will cause the GUI to fail to update. All 
     % properties in this section should be updated in the constructor once the AOM is connected
     properties (Hidden, SetObservable, AbortSet)
-        currentFrequency=-1
-        targetFrequency=0
-        
-        currentPower
-        targetPower
-        
         minFrequency
         maxFrequency
  
         minPower
         maxPower
 
-        enableChannel=true
-        enableBlanking=true
 
+        % TODO: the following are likely really bad practice
         isAomConnected=false % Set by isControllerConnected
         isAomReady=false % Must be updated by isReady
     end %close GUI-related properties
@@ -106,6 +102,16 @@ classdef (Abstract) aom < handle
         % msg- if the AOM is not ready, it should return a string that indicates the 
         %      the reason for the failure. This will be logged or sent as a Slack or 
         %      e-mail message to the operator. 
+
+
+        linkToLaser(obj,thisLaser)
+        %  linkToLaser
+        %
+        % Behavior
+        % Places reference to thisLaser (which must be an object of a class that inherits
+        % laser) in the laser property. Sets up any listeners that are necessary to run 
+        % when the user changes laser wavelength, etc.
+
 
         frequency = readFrequency(obj)
         % readFrequency
