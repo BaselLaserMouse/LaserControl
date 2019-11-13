@@ -12,6 +12,10 @@ classdef MPDSaom < laserControl.aom
 
 
     properties
+        referenceWavelength=890 %We will tune the the frequency at this wavelength
+        referenceFrequency=104  %This is a default, it can be over-ridden by a saved value
+        powerTable=[890,500; 920,520 ] %Format: col 1 is wavelength and col 2 is raw power. Can be loaded from disk.
+        settingsFname='MPDSaom_settings.mat'
     end
 
     methods
@@ -22,9 +26,6 @@ classdef MPDSaom < laserControl.aom
             if nargin<1
                 error('MPDSaom requires one argument: you must supply the COM port as a string')
             end
-            
-            obj.maxFrequency=1100;
-            obj.minFrequency=700;
 
             fprintf('\nSetting up MPDS AOM communication on serial port %s\n', serialComms);
             laserControl.clearSerial(serialComms)
@@ -37,7 +38,7 @@ classdef MPDSaom < laserControl.aom
                 %TODO: is it possible to delete it here?
             end
 
-      
+
             %Set the target wavelength to equal the current wavelength
             %obj.targetWavelength=obj.currentWavelength;
 
@@ -45,9 +46,9 @@ classdef MPDSaom < laserControl.aom
             fprintf('Connected to MPDS AOM on %s\n', ...
              serialComms)
 
-            
+
         end %constructor
-        
+
         function delete(obj)
             fprintf('Disconnecting from MPDS AOM device\n');
             if ~isempty(obj.hC) && isa(obj.hC,'serial') && isvalid(obj.hC)
@@ -56,6 +57,9 @@ classdef MPDSaom < laserControl.aom
                 fclose(obj.hC);
                 delete(obj.hC);
             end  
+            if ~isempty(obj.listeners)
+                cellfun(@delete,obj.listeners)
+            end
         end %Destructor
 
 
@@ -86,22 +90,41 @@ classdef MPDSaom < laserControl.aom
         end
 
 
+        function linkToLaser(obj,thisLaser)
+            if ~isa(thisLaser,'laserControl.laser')
+                fprintf('Error: linkToLaser must be supplied with an object that inherits class "laserControl.laser"\n')
+                return
+            end
+            obj.laser=thisLaser;
+
+            obj.listeners{1}=addlistener(obj.laser, 'targetWavelength', 'PostSet', @obj.updateAOMsetingsBasedOnWavelength);
+
+        end
+
 
         function success = isControllerConnected(obj)
             S=obj.getStatusString;
             if isempty(S)
+                obj.isAomConnected=false;
                 success=false;
                 return
             end
+            obj.isAomConnected=true;
             success=true;
         end
-        
-        
+
+
         function [AOMReady,msg] = isReady(obj)
-            AOMReady=true;
+            if ~obj.isControllerConnected
+                AOMReady=false;
+                obj.isAomReady=AOMReady;
+                return
+            end
+            AOMReady=obj.readAOMBlankingState;
+            obj.isAomReady=AOMReady;
         end
 
-        
+
         function frequency = readFrequency(obj,statusStr)
             if nargin<2
                 statusStr = obj.getStatusString;
@@ -109,7 +132,7 @@ classdef MPDSaom < laserControl.aom
             T=regexp(statusStr,' F=(\d+\.\d+) P=','tokens');
             frequency = str2double(T{1}{1});
         end
-        
+
 
         function success = setFrequency(obj, frequencyInMHz)
 
@@ -117,7 +140,7 @@ classdef MPDSaom < laserControl.aom
             frequencyInMHz = round(frequencyInMHz,2);
             cmd = sprintf('L1F%3.2f',frequencyInMHz);
             [s,strReturn]=obj.sendAndReceiveSerial(cmd);
-            
+
             % Issue a warning message if the driver didn't set itself to the desired frequency
             currentFrequency = obj.readFrequency;
             if currentFrequency ~= frequencyInMHz
@@ -128,7 +151,7 @@ classdef MPDSaom < laserControl.aom
                 success=true;
             end
         end
-        
+
         function AOMPower = readPower(obj,statusStr)
             if nargin<2
                 statusStr=[];
@@ -148,14 +171,14 @@ classdef MPDSaom < laserControl.aom
             T=regexp(statusStr,' P=(\d+\.\d+) ','tokens');
             AOMPower = str2double(T{1}{1});
         end
-        
-        
+
+
         function success = setPower_dB(obj, powerIn_dB)
             % Round requency to two decimal places and send to driver
             powerIn_dB = round(powerIn_dB,2);
             cmd = sprintf('L1D%2.2f',powerIn_dB);
             [s,strReturn]=obj.sendAndReceiveSerial(cmd);
-            
+
             % Issue a warning message if the driver didn't set itself to the desired power
             currentPower = obj.readPower;
             if abs(currentPower-powerIn_dB)>0.05 %Represented as a 10bit value so may be off by a little
@@ -176,8 +199,8 @@ classdef MPDSaom < laserControl.aom
             T=regexp(statusStr,' P=(\d+\.\d+) ','tokens');
             AOMPower = str2double(T{1}{1});
         end
-        
-                
+
+
         function success = setPower_raw(obj, powerIn_raw)
             % Round requency to two decimal places and send to driver
             if powerIn_raw<0 || powerIn_raw>1023
@@ -198,10 +221,11 @@ classdef MPDSaom < laserControl.aom
             end
         end
 
-  
+
         function AOMID = readAOMID(obj)
+            AOMID='MPDS'; %Can change if we really care
         end
-        
+
 
         % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         function [success,reply]=sendAndReceiveSerial(obj,commandString,waitForReply)
@@ -262,7 +286,7 @@ classdef MPDSaom < laserControl.aom
     end %close methods
 
 
-    
+
 
     % MPDS-specific
     methods
@@ -331,6 +355,30 @@ classdef MPDSaom < laserControl.aom
 
         function reset(obj)
             fprintf(obj.hC,'M'); %This command needs no CR
+        end
+
+        % Callback that runs when laser wavelength changes
+        function updateAOMsetingsBasedOnWavelength(obj,~,~)
+            if ~obj.respondToChangingLaserWavelength
+                return
+            end
+            if isempty(obj.laser) || ~isvalid(obj.laser)
+                return
+            end
+
+            lasWav = obj.laser.targetWavelength; %Wavelength user is tuning to
+
+            % Set the AOM frequency based upon laser wavelength
+            newFreq = (obj.referenceWavelength/lasWav) * obj.referenceFrequency;
+            fprintf('Tuning to %d nm: AOM at %0.2f MHz ', lasWav, newFreq)
+            obj.setFrequency(newFreq);
+
+            % Set AOM power in dB based on laser wavelength
+            delta=abs(obj.powerTable(:,1)-lasWav);
+            ind = find(delta==min(delta));
+            newPower = obj.powerTable(ind,2);
+            fprintf('& power at %d\n', newPower);
+            obj.setPower_raw(newPower);
         end
     end % hidden methods
 
