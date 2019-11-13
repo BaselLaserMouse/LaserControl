@@ -111,28 +111,38 @@ classdef MPDSaom < laserControl.aom
         end
         
 
-        function success = setFrequency(obj, frequencyInHz)
+        function success = setFrequency(obj, frequencyInMHz)
 
             % Round requency to two decimal places and send to driver
-            frequencyInHz = round(frequencyInHz,2);
-            cmd = sprintf('L1F%3.2f',frequencyInHz);
+            frequencyInMHz = round(frequencyInMHz,2);
+            cmd = sprintf('L1F%3.2f',frequencyInMHz);
             [s,strReturn]=obj.sendAndReceiveSerial(cmd);
             
             % Issue a warning message if the driver didn't set itself to the desired frequency
             currentFrequency = obj.readFrequency;
-            if currentFrequency ~= frequencyInHz
-                fprintf('User asked for %0.2f Hz but driver is at %0.2f Hz\n', ...
-                    frequencyInHz,currentFrequency)
+            if currentFrequency ~= frequencyInMHz
+                fprintf('User asked for %0.2f MHz but driver is at %0.2f MHz\n', ...
+                    frequencyInMHz,currentFrequency)
                 success=false;
             else
                 success=true;
             end
         end
         
-
         function AOMPower = readPower(obj,statusStr)
-            %Return AOM frequency power in dB
             if nargin<2
+                statusStr=[];
+            end
+            AOMPower = obj.readPower_dB(statusStr);
+        end
+        function success = setPower(obj,powerIn_dB)
+            success = obj.setPower_dB(powerIn_dB);
+        end
+
+
+        function AOMPower = readPower_dB(obj,statusStr)
+            %Return AOM frequency power in dB
+            if nargin<2 || isempty(statusStr)
                 statusStr = obj.getStatusString;
             end
             T=regexp(statusStr,' P=(\d+\.\d+) ','tokens');
@@ -140,20 +150,51 @@ classdef MPDSaom < laserControl.aom
         end
         
         
-        function success = setPower(obj, powerIndB)
+        function success = setPower_dB(obj, powerIn_dB)
             % Round requency to two decimal places and send to driver
-            powerIndB = round(powerIndB,2);
-            cmd = sprintf('L1D%2.2f',powerIndB);
-            [s,strReturn]=obj.sendAndReceiveSerial([cmd,char(13)],char(13));
+            powerIn_dB = round(powerIn_dB,2);
+            cmd = sprintf('L1D%2.2f',powerIn_dB);
+            [s,strReturn]=obj.sendAndReceiveSerial(cmd);
             
             % Issue a warning message if the driver didn't set itself to the desired power
             currentPower = obj.readPower;
-            if abs(currentPower-powerIndB)>0.05 %Represented as a 10bit value so may be off by a little
+            if abs(currentPower-powerIn_dB)>0.05 %Represented as a 10bit value so may be off by a little
                 fprintf('User asked for %0.2f dB but driver is at %0.2f dB\n', ...
-                    powerIndB,currentPower)
+                    powerIn_dB,currentPower)
                 success=false;
             else
                 success=true;
+            end
+        end
+
+
+        function AOMPower = readPower_raw(obj,statusStr)
+            %Return AOM frequency power in raw value from register (0 to 1023)
+            if nargin<2
+                statusStr = obj.getStatusString
+            end
+            T=regexp(statusStr,' P=(\d+\.\d+) ','tokens');
+            AOMPower = str2double(T{1}{1});
+        end
+        
+                
+        function success = setPower_raw(obj, powerIn_raw)
+            % Round requency to two decimal places and send to driver
+            if powerIn_raw<0 || powerIn_raw>1023
+                fprintf('Power value out of range\n')
+                return
+            end
+            cmd = sprintf('L1P%04d',powerIn_raw);
+            [s,strReturn]=obj.sendAndReceiveSerial(cmd);
+            outStr=obj.nudgePowerUp;
+            currentPower = regexp(outStr,'P=(\d+)\(','tokens');
+            currentPower = str2double(currentPower{1}{1});
+            if currentPower == powerIn_raw
+                success=true;
+            else
+                fprintf('User requested power=%d but power is %d\n',...
+                    powerIn_raw,currentPower)
+                success=false;
             end
         end
 
@@ -210,7 +251,14 @@ classdef MPDSaom < laserControl.aom
             success=true;
         end
 
-
+        % Serial read command for the weird commands that don't use a CR and return a question mark
+        function outStr = nonStandardSerial(obj,commandString)
+            obj.hC.Terminator='';
+            fprintf(obj.hC,commandString); %Because this command does not need a CR
+            obj.hC.Terminator='?'; % Yeah...
+            outStr = fgets(obj.hC);
+            obj.hC.Terminator='CR';
+        end
     end %close methods
 
 
@@ -240,6 +288,36 @@ classdef MPDSaom < laserControl.aom
             end
         end
 
+
+        % Nudge commands for frequency and power (return to CLI the current values)
+        function nudgeFreqUp(obj)
+            str=obj.nonStandardSerial('6');
+            [a,b]=regexp(str,'\d+\.\d+ MHz');
+            fprintf('%s\n',str(a:b))
+        end
+        function nudgeFreqDown(obj)
+            str=obj.nonStandardSerial('4');
+            [a,b]=regexp(str,'\d+\.\d+ MHz');
+            fprintf('%s\n',str(a:b))
+        end
+
+        function varargout=nudgePowerUp(obj)
+            str=obj.nonStandardSerial('8');
+            [a,b]=regexp(str,'P.*\)');
+
+            % Optional output return because it seems we have to use this to read the raw power
+            % value. Stupidly, there is no other way that I can see. 
+            if nargout>0
+                varargout{1}=str(a:b);
+            else
+               fprintf('%s\n',str(a:b))
+            end
+        end
+        function nudgePowerDown(obj)
+            str=obj.nonStandardSerial('2');
+            [a,b]=regexp(str,'P.*\)');
+            fprintf('%s\n',str(a:b))
+        end
     end % MPDS-specific
 
     % MPDS-specific hidden
@@ -247,11 +325,7 @@ classdef MPDSaom < laserControl.aom
         function statusStr = getStatusString(obj)
             % Get the status string. Annoying code because this command follows
             % a different standard to the rest
-            obj.hC.Terminator='';
-            fprintf(obj.hC,'S'); %Because this command does not need a CR
-            obj.hC.Terminator='?'; % Yeah...
-            statusStr = fgets(obj.hC);
-            obj.hC.Terminator='CR';
+            statusStr = obj.nonStandardSerial('S');
             statusStr = statusStr(3:end-2); %Just to trim extra char returns
         end
 
