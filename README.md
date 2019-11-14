@@ -22,6 +22,120 @@ To start the GUI:
 For that to work you will need to edit the settings file created in the SETTINGS directory the first time you run the above command. Simply fill in the laser name and the COM port index to which the laser is connected. 
 
 
+## Using the AOM
+```
+>> LC = startLaserControl
+LC = 
+
+  struct with fields:
+
+    hLaser: [1×1 laserControl.maitai]
+      hGUI: [1×1 laserControl.gui.laser_view]
+      hAOM: [1×1 laserControl.MPDSaom]
+
+%% Upon tuning laser in GUI the AOM changes frequency and power
+Tuning to 920 nm: AOM at 100.61 MHz & power at 520
+
+```
+To set the reference freq tune laser to 890 (or whatever is in `LC.hAOM.referenceWavelength`).
+To do this you have these commands:
+```
+
+>> LC.hAOM.readFrequency
+
+ans =
+
+   104
+   
+%and to set it:
+>> LC.hAOM.setFrequency(111.11);
+
+
+
+% and we can nudge:
+
+>> LC.hAOM.nudgeFreqUp
+111.111 MHz
+>> LC.hAOM.nudgeFreqUp
+111.112 MHz
+>> LC.hAOM.nudgeFreqUp
+111.113 MHz
+>> LC.hAOM.nudgeFreqUp
+111.114 MHz
+>> LC.hAOM.nudgeFreqDown
+111.113 MHz
+>> LC.hAOM.nudgeFreqDown
+111.112 MHz
+>> LC.hAOM.nudgeFreqDown
+111.111 MHz
+>> LC.hAOM.nudgeFreqDown
+111.110 MHz
+```
+
+Then we find the correct frequency for the reference wavelength and set it in the object like this:
+```
+>> LC.hAOM.referenceFrequency=111.11; 
+```
+
+
+Set RF power of AOM is the same:
+
+```
+
+>> LC.hAOM.readPower_dB
+
+ans =
+
+   11.6000
+
+>> LC.hAOM.setPower_dB(15)
+
+ans =
+
+  logical
+
+   1
+
+>> LC.hAOM.readPower_dB
+
+ans =
+
+    15
+
+>> LC.hAOM.nudgePowerUp
+P=618(15.0dBm)
+>> LC.hAOM.nudgePowerUp
+P=619(15.0dBm)
+>> LC.hAOM.nudgePowerUp
+P=620(15.1dBm)
+>> LC.hAOM.nudgePowerUp
+P=621(15.1dBm)
+>> LC.hAOM.setPower_raw(666)
+
+ans =
+
+  logical
+
+   1
+
+>> LC.hAOM.readPower_dB
+
+ans =
+
+   16.6000
+```
+
+```
+>> LC.hAOM.powerTable
+
+ans =
+
+   890   500
+   920   520
+```
+
+
+   
 ## Planned changes
 * Add AOM class so that changing wavelength also alters AOM frequency and power. 
 * GUI so user can tweak AOM power and add current power to lookup table. 
