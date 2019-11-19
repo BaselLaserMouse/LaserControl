@@ -5,7 +5,7 @@ classdef MPDSaom < laserControl.aom
 % M = MPDSaom('COM1');
 %
 %
-% For detailed method docs, please see the aom abstract class. 
+% For detailed method docs, please see the comments and help text in the aom abstract class. 
 %
 %
 % Rob Campbell - SWC 2019
@@ -14,7 +14,6 @@ classdef MPDSaom < laserControl.aom
         referenceWavelength=890 %We will tune the the frequency at this wavelength
         referenceFrequency=104  %This is a default, it can be over-ridden by a saved value
         powerTable=[890,500; 920,520] %Format: col 1 is wavelength and col 2 is raw power. Can be loaded from disk.
-        settingsFname='MPDSaom_settings.mat'
     end
 
     methods
@@ -31,6 +30,9 @@ classdef MPDSaom < laserControl.aom
             obj.controllerID=serialComms;
             success = obj.connect;
 
+            % Define a file name for the settings file
+            obj.settingsFname='MPDSaom_settings.mat';
+
             if ~success
                 fprintf('Component MPDS AOM failed to connect over the serial port.\n')
                 return
@@ -38,12 +40,8 @@ classdef MPDSaom < laserControl.aom
             end
 
 
-            %Set the target wavelength to equal the current wavelength
-            %obj.targetWavelength=obj.currentWavelength;
-
-            %Report connection and humidity
-            fprintf('Connected to MPDS AOM on %s\n', ...
-             serialComms)
+            %Report connection 
+            fprintf('Connected to MPDS AOM on %s\n', serialComms)
 
 
         end %constructor
@@ -86,6 +84,7 @@ classdef MPDSaom < laserControl.aom
                 end
             end
             obj.isAomConnected=success;
+            obj.loadSettingsFromDisk;
         end
 
 
@@ -97,7 +96,6 @@ classdef MPDSaom < laserControl.aom
             obj.laser=thisLaser;
 
             obj.listeners{1}=addlistener(obj.laser, 'targetWavelength', 'PostSet', @obj.updateAOMsetingsBasedOnWavelength);
-
         end
 
 
@@ -121,6 +119,68 @@ classdef MPDSaom < laserControl.aom
             end
             AOMReady=obj.readAOMBlankingState;
             obj.isAomReady=AOMReady;
+        end
+
+
+        function success=loadSettingsFromDisk(obj)
+            if isempty(obj.settingsPath)
+                success=false
+                fprintf('Failed to find settings file at %s\n',obj.settingsPath)
+                return
+            end
+
+            fprintf('Loading AOM settings from disk and applying\n')
+            load(obj.settingsPath);
+            obj.referenceWavelength = settings.referenceWavelength;
+            obj.referenceFrequency = settings.referenceFrequency;
+            obj.powerTable = settings.powerTable;
+
+            successes=zeros(1,4);
+            if settings.blankingEnabled
+                successes(1)=obj.enableAOMBlanking;
+            else
+                successes(1)=obj.disableAOMBlanking;
+            end
+
+            if strcmp(obj.readAOMBlankingState,'internal')
+                successes(2)=obj.externalAOMBlanking;
+            else
+                successes(2)=obj.internalAOMBlanking;
+            end
+
+            if settings.chanOneEnabled
+                successes(3)=obj.enableChannel;
+            else
+                successes(3)=obj.disableChannel;
+            end
+
+            if strcmp(obj.readChannelState,'internal')
+                successes(4)=obj.internalChannel;
+            else
+                successes(4)=obj.externalChannel;
+            end
+
+            success=all(successes);
+
+            if ~success
+                fprintf('Some settings failed to set correctly\n')
+            end
+
+        end
+
+
+        function writeCurrentStateToSettingsFile(obj)
+            settings.referenceWavelength = obj.referenceWavelength;
+            settings.referenceFrequency = obj.referenceFrequency;
+            settings.powerTable = obj.powerTable;
+
+            settings.blankingEnabled = obj.readAOMBlankingEnabled;
+            settings.blankingState = obj.readAOMBlankingState;
+            settings.chanOneEnabled = obj.readChannelEnabled; %We have only one channel
+            settings.chanOneState = obj.readChannelState; %We have only one channel
+
+            fprintf('Saving settings to %s\n',obj.settingsPath)
+            save(obj.settingsPath,'settings')
         end
 
 
@@ -290,7 +350,7 @@ classdef MPDSaom < laserControl.aom
     % MPDS-specific
     methods
 
-
+        % Methods for changing settings on the AOM
         function success = disableAOMBlanking(obj)
             obj.sendAndReceiveSerial('L0O0');
             success = ~obj.readAOMBlankingEnabled;
@@ -369,6 +429,7 @@ classdef MPDSaom < laserControl.aom
         end
 
 
+        % Methods for reading back the state of the AOM
         function state = readAOMBlankingEnabled(obj,statusStr)
             % Returns true if blanking is enabled. False if disabled.
             if nargin<2

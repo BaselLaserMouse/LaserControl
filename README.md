@@ -23,7 +23,6 @@ For that to work you will need to edit the settings file created in the SETTINGS
 
 
 ## Planned changes
-* Add AOM class so that changing wavelength also alters AOM frequency and power. 
 * GUI so user can tweak AOM power and add current power to lookup table. 
 * Is it possible to run polling of serial line in the background? (So it does not block and cause small pause of ScanImage GUI updates). 
 
@@ -36,3 +35,4 @@ For that to work you will need to edit the settings file created in the SETTINGS
 * v0.6.50 - MPDS AOM: Is now linked to laser and changes frequency and power automatically.
 * v0.7.00 - startLaserControl now starts the laser and AOM.
 * v0.9.00 - More fine-grained options for setting AOM modes. Tested with laser. 
+* v0.9.30 - Settings load and save from disk.
