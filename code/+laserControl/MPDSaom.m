@@ -291,14 +291,69 @@ classdef MPDSaom < laserControl.aom
     % MPDS-specific
     methods
 
+
         function success = disableAOMBlanking(obj)
-            obj.sendAndReceiveSerial('L0I0O0');
+            obj.sendAndReceiveSerial('L0O0');
             success = ~obj.readAOMBlankingState;
         end
 
         function success = enableAOMBlanking(obj)
-            obj.sendAndReceiveSerial('L0I1O1');
+            obj.sendAndReceiveSerial('L0O1');
             success = obj.readAOMBlankingState;
+        end
+
+        function success = internalAOMBlanking(obj)
+            obj.sendAndReceiveSerial('L0I1');
+            success = true; %TODO: add test
+        end
+
+        function success = externalAOMBlanking(obj)
+            obj.sendAndReceiveSerial('L0I0');
+            success = true; %TODO: add test
+        end
+
+        function success = disableChannel(obj,chan)
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            obj.sendAndReceiveSerial(['L',chan,'O0']);
+            success = true; %TODO: add test
+        end
+
+        function success = internalChannel(obj,chan)
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            obj.sendAndReceiveSerial(['L',chan,'I1']);
+            success = true; %TODO: add test
+        end
+
+        function success = externalChannel(obj,chan)
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            obj.sendAndReceiveSerial(['L',chan,'I0']);
+            success = true; %TODO: add test
+        end
+
+        function success = enableChannel(obj,chan)
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            obj.sendAndReceiveSerial(['L',chan,'O1']);
+            success = true; %TODO: add test
         end
 
         function state = readAOMBlankingState(obj,statusStr)
