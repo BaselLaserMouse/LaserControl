@@ -28,7 +28,7 @@ classdef laser_view < laserControl.gui.child_view
     end
 
     methods
-        function obj = laser_view(hLaser,parentView)
+        function obj = laser_view(hLaser)
             obj = obj@laserControl.gui.child_view;
 
             if nargin>0
@@ -36,10 +36,6 @@ classdef laser_view < laserControl.gui.child_view
             else
                 fprintf('Can''t build laser_view: please supply hBT as an input argument\n');
                 return
-            end
-
-            if nargin>1
-                obj.parentView=parentView;
             end
 
             obj.hFig = laserControl.gui.newGenericGUIFigureWindow('laserControl_laser');
