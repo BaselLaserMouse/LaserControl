@@ -10,12 +10,6 @@ classdef MPDSaom < laserControl.aom
 %
 % Rob Campbell - SWC 2019
 
-    properties
-        referenceWavelength=890 %We will tune the the frequency at this wavelength
-        referenceFrequency=104  %This is a default, it can be over-ridden by a saved value
-        powerTable=[750,20; 920,20] %Format: col 1 is wavelength and col 2 is power in dB. Can be loaded from disk.
-    end
-
     methods
         function obj = MPDSaom(serialComms)
         % function obj = maitai(serialComms,logObject)
@@ -23,6 +17,12 @@ classdef MPDSaom < laserControl.aom
 
             % Define a file name for the settings file
             obj.settingsFname='MPDSaom_settings.mat';
+
+            % Set some values to the AOM tuning parameters in case the user
+            % has not yet created a settings file. 
+            obj.referenceWavelength=890; %We will tune the the frequency at this wavelength
+            obj.referenceFrequency=104;  %This is a default, it can be over-ridden by a saved value
+            obj.powerTable=[750,20; 920,20]; %Format: col 1 is wavelength and col 2 is power in dB. Can be loaded from disk.
 
             if nargin<1
                 error('MPDSaom requires one argument: you must supply the COM port as a string')

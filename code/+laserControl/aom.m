@@ -38,6 +38,18 @@ classdef (Abstract) aom < handle
     end %close hidden properties
 
 
+    properties (SetObservable)
+        referenceWavelength  %We will tune the the frequency at this wavelength
+        referenceFrequency   %This is a default, it can be over-ridden by a saved value
+        powerTable           %Format: col 1 is wavelength and col 2 is power in dB. Can be loaded from disk.
+    end
+
+
+    properties (Hidden,SetObservable)
+        currentRFpower_dB
+        currentFrequency
+    end
+
     % These are GUI-related properties. The view class that comprises the GUI listens to changes in these
     % properties to know when to update the GUI. It is therefore necessary for these to be updated as 
     % appropriate by classes which inherit AOM. e.g. If the shutter is opened then the shutterOpen 
