@@ -5,23 +5,24 @@ classdef MPDSaom < laserControl.aom
 % M = MPDSaom('COM1');
 %
 %
-% For detailed method docs, please see the aom abstract class. 
+% For detailed method docs, please see the comments and help text in the aom abstract class. 
 %
 %
 % Rob Campbell - SWC 2019
 
-
     properties
         referenceWavelength=890 %We will tune the the frequency at this wavelength
         referenceFrequency=104  %This is a default, it can be over-ridden by a saved value
-        powerTable=[890,500; 920,520 ] %Format: col 1 is wavelength and col 2 is raw power. Can be loaded from disk.
-        settingsFname='MPDSaom_settings.mat'
+        powerTable=[890,500; 920,520] %Format: col 1 is wavelength and col 2 is raw power. Can be loaded from disk.
     end
 
     methods
         function obj = MPDSaom(serialComms)
         % function obj = maitai(serialComms,logObject)
         % serialComms is a string indicating the serial port we should connect to
+
+            % Define a file name for the settings file
+            obj.settingsFname='MPDSaom_settings.mat';
 
             if nargin<1
                 error('MPDSaom requires one argument: you must supply the COM port as a string')
@@ -32,6 +33,7 @@ classdef MPDSaom < laserControl.aom
             obj.controllerID=serialComms;
             success = obj.connect;
 
+
             if ~success
                 fprintf('Component MPDS AOM failed to connect over the serial port.\n')
                 return
@@ -39,12 +41,8 @@ classdef MPDSaom < laserControl.aom
             end
 
 
-            %Set the target wavelength to equal the current wavelength
-            %obj.targetWavelength=obj.currentWavelength;
-
-            %Report connection and humidity
-            fprintf('Connected to MPDS AOM on %s\n', ...
-             serialComms)
+            %Report connection 
+            fprintf('Connected to MPDS AOM on %s\n', serialComms)
 
 
         end %constructor
@@ -86,7 +84,15 @@ classdef MPDSaom < laserControl.aom
                     success=false;
                 end
             end
-            obj.isAomConnected=success;
+            s=obj.getStatusString;
+            if ~isempty(s)
+                obj.isAomConnected=true;
+                obj.loadSettingsFromDisk;
+            else
+                obj.isAomConnected=false;
+                fprintf('AOM does not seem to be responding to serial commands\n')
+            end
+
         end
 
 
@@ -98,7 +104,6 @@ classdef MPDSaom < laserControl.aom
             obj.laser=thisLaser;
 
             obj.listeners{1}=addlistener(obj.laser, 'targetWavelength', 'PostSet', @obj.updateAOMsetingsBasedOnWavelength);
-
         end
 
 
@@ -225,64 +230,7 @@ classdef MPDSaom < laserControl.aom
         function AOMID = readAOMID(obj)
             AOMID='MPDS'; %Can change if we really care
         end
-
-
-        % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        function [success,reply]=sendAndReceiveSerial(obj,commandString,waitForReply)
-            % Send a serial command and optionally read back the reply 
-            if nargin<3
-                waitForReply=true;
-            end
-
-            if isempty(commandString) || ~ischar(commandString)
-                reply='';
-                success=false;
-                return
-            end
-
-            fprintf(obj.hC,commandString);
-
-            if ~waitForReply
-                reply=[];
-                success=true;
-                if obj.hC.BytesAvailable>0
-                    fprintf('Not waiting for reply by there are %d BytesAvailable\n',obj.hC.BytesAvailable)
-                end
-                return
-            end
-
-            reply=fgets(obj.hC);
-            doFlush=1;
-            if obj.hC.BytesAvailable>0
-                if doFlush
-                    fprintf('Read in from the MPDSaom buffer using command "%s" but there are still %d BytesAvailable. Flushing.\n', ...
-                        commandString, obj.hC.BytesAvailable)
-                    flushinput(obj.hC)
-                else
-                    fprintf('Read in from the MPDSaom buffer using command "%s" but there are still %d BytesAvailable. NOT FLUSHING.\n', ...
-                        commandString, obj.hC.BytesAvailable)
-                end
-            end
-
-            if ~isempty(reply)
-                reply(end)=[];
-            else
-                msg=sprintf('MPDSaom serial command %s did not return a reply\n',commandString);
-                success=false;
-                return
-            end
-
-            success=true;
-        end
-
-        % Serial read command for the weird commands that don't use a CR and return a question mark
-        function outStr = nonStandardSerial(obj,commandString)
-            obj.hC.Terminator='';
-            fprintf(obj.hC,commandString); %Because this command does not need a CR
-            obj.hC.Terminator='?'; % Yeah...
-            outStr = fgets(obj.hC);
-            obj.hC.Terminator='CR';
-        end
+        
     end %close methods
 
 
@@ -291,17 +239,88 @@ classdef MPDSaom < laserControl.aom
     % MPDS-specific
     methods
 
+        % Methods for changing settings on the AOM
         function success = disableAOMBlanking(obj)
-            obj.sendAndReceiveSerial('L0I0O0');
-            success = ~obj.readAOMBlankingState;
+            obj.sendAndReceiveSerial('L0O0');
+            success = ~obj.readAOMBlankingEnabled;
         end
+
 
         function success = enableAOMBlanking(obj)
-            obj.sendAndReceiveSerial('L0I1O1');
-            success = obj.readAOMBlankingState;
+            obj.sendAndReceiveSerial('L0O1');
+            success = obj.readAOMBlankingEnabled;
         end
 
-        function state = readAOMBlankingState(obj,statusStr)
+
+        function success = internalAOMBlanking(obj)
+            obj.sendAndReceiveSerial('L0I1');
+            success = strcmp(obj.readAOMBlankingState,'internal');
+        end
+
+
+        function success = externalAOMBlanking(obj)
+            obj.sendAndReceiveSerial('L0I0');
+            success = strcmp(obj.readAOMBlankingState,'external');
+        end
+
+
+        function success = disableChannel(obj,chan)
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            obj.sendAndReceiveSerial(['L',chan,'O0']);
+            success = ~obj.readChannelEnabled(chan);
+            if isnan(success)
+                success=false;
+            end
+        end
+
+
+        function success = enableChannel(obj,chan)
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            obj.sendAndReceiveSerial(['L',chan,'O1']);
+            success = obj.readChannelEnabled(chan);
+            if isnan(success)
+                success=false;
+            end
+        end
+
+
+        function success = internalChannel(obj,chan)
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            obj.sendAndReceiveSerial(['L',chan,'I1']);
+            success = strcmp(obj.readChannelState(chan),'internal');
+        end
+
+
+        function success = externalChannel(obj,chan)
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            obj.sendAndReceiveSerial(['L',chan,'I0']);
+            success = strcmp(obj.readChannelState(chan),'external');
+        end
+
+
+        % Methods for reading back the state of the AOM
+        function state = readAOMBlankingEnabled(obj,statusStr)
+            % Returns true if blanking is enabled. False if disabled.
             if nargin<2
                 statusStr = obj.getStatusString;
             end
@@ -311,6 +330,69 @@ classdef MPDSaom < laserControl.aom
                 state=false;
             end
         end
+
+
+        function state = readAOMBlankingState(obj,statusStr)
+            % Returns a string describing if the blanking is 'internal' or 'external'
+            if nargin<2
+                statusStr = obj.getStatusString;
+            end
+            tok=regexp(statusStr,'Blanking \w+ (\w+)','tokens');
+            state = lower(tok{1}{1});
+        end
+
+
+        function state = readChannelEnabled(obj,chan,statusStr)
+            % Returns true if the defined channel is "On".
+            % Returns NaN if the channel was not found
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            if nargin<3
+                statusStr = obj.getStatusString;
+            end
+
+            tok=regexp(statusStr,['l',chan,' F=.*? P=.*? (O[NF]+) [EI]\w+.*Blanking'],'tokens');
+            if isempty(tok)
+                fprintf('Channel %s not found by MPDSaom.readChannelState\n', chan)
+                state=NaN;
+                return 
+            end
+            if strcmp('ON',tok{1}{1})
+                state=true;
+            elseif strcmp('OFF',tok{1}{1})
+                state=false;
+            end
+
+        end
+
+
+        function state = readChannelState(obj,chan,statusStr)
+            % Returns a string describing if the defined channel is to 'internal' or 'external'.
+            % External is used for commanding power with a 0 to 10V drive signal.
+            % Returns false if the channel was not found
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            if nargin<3
+                statusStr = obj.getStatusString;
+            end
+
+            tok=regexp(statusStr,['l',chan,' F=.*? P=.*? O[NF]+ (\w+).*Blanking'],'tokens');
+            if isempty(tok)
+                fprintf('Channel %s not found by MPDSaom.readChannelState\n', chan)
+                state=false;
+                return 
+            end
+            state = lower(tok{1}{1});
+        end
+
 
 
         % Nudge commands for frequency and power (return to CLI the current values)
@@ -380,6 +462,7 @@ classdef MPDSaom < laserControl.aom
             fprintf('& power at %d\n', newPower);
             obj.setPower_raw(newPower);
         end
+
     end % hidden methods
 
     

@@ -33,6 +33,8 @@ classdef (Abstract) aom < handle
     properties (Hidden)
         laser  %The laser object which the AOM class can modify goes here
         listeners = {}
+        settingsFname % Settings for the device go in a file (e.g. MAT file) named thus. This value
+                      % should be defined as soon as possible in the concrete class constructor. 
     end %close hidden properties
 
 
@@ -84,6 +86,29 @@ classdef (Abstract) aom < handle
         %           i.e. it is not sufficient that, say, a COM port is open. For success 
         %           to be true, the AOM must prove that it can interact in some way 
         %           with the host PC.  
+
+
+        success = loadSettingsFromDisk(obj)
+        % loadSettingsFromDisk
+        %
+        % Behavior
+        % Loads from disk a settings file located at the path define by
+        % laserControl.settings.settingsLocation and named obj.settingsFname
+        % then applies those settings to the running instance. 
+        %
+        % Outputs
+        % success - Return true if data were loaded. False otherwise. 
+        %           Method should return false if the settings file was absent.
+
+
+        writeCurrentStateToSettingsFile(obj)
+        % writeCurrentStateToSettingsFile
+        %
+        % Behavior
+        % Saved to disk the current state of the GUI as a settings file. The saved file
+        % should be placed at the path define by laserControl.settings.settingsLocation 
+        % and named obj.settingsFname. The class should be able to re-load the settings
+        % and re-apply with the loadSettingsFromDisk method
 
 
         [AOMReady,msg] = isReady(obj)
@@ -186,36 +211,10 @@ classdef (Abstract) aom < handle
 
     %The following methods are common to all AOMs
     methods
-        function [inRange,msg] = isTargetFrequencyInRange(obj,targetFrequency)
-            %Return false if the target frequency supplied by the user is
-            %out of the allowed range. True otherwise. targetFrequency is
-            %defined in Hz. 
-            if targetFrequency<obj.minPower || targetFrequency>obj.maxPower
-                msg=sprintf('Wavelength %d nm is out of range -- max=%d nm, min=%d nm\n', ...
-                    targetFrequency, obj.maxWavelength, obj.minWavelength);
-                sprintf(msg);
-                inRange=false;
-                return
-            end
-            msg='';
-            inRange=true;
+        function fname = settingsPath(obj)
+            % Path to settings file
+            fname = fullfile(laserControl.settings.settingsLocation,obj.settingsFname);
         end
-        
-        function [inRange,msg] = isTargetPowerInRange(obj,targetPower)
-            %Return false if the target power supplied by the user is
-            %out of the allowed range. True otherwise. targetPower is
-            %defined in dB. 
-            if targetPower<obj.minPower || targetPower>obj.maxPower
-                msg=sprintf('Wavelength %d nm is out of range -- max=%d nm, min=%d nm\n', ...
-                    targetPower, obj.maxWavelength, obj.minWavelength);
-                sprintf(msg);
-                inRange=false;
-                return
-            end
-            msg='';
-            inRange=true;
-        end
-
     end %close methods
 
 end %close classdef
