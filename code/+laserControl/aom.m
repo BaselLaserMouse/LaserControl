@@ -33,7 +33,8 @@ classdef (Abstract) aom < handle
     properties (Hidden)
         laser  %The laser object which the AOM class can modify goes here
         listeners = {}
-        settingsFname % Settings for the device go in a file (e.g. MAT file) named thus
+        settingsFname % Settings for the device go in a file (e.g. MAT file) named thus. This value
+                      % should be defined as soon as possible in the concrete class constructor. 
     end %close hidden properties
 
 
@@ -210,12 +211,10 @@ classdef (Abstract) aom < handle
 
     %The following methods are common to all AOMs
     methods
-
         function fname = settingsPath(obj)
             % Path to settings file
             fname = fullfile(laserControl.settings.settingsLocation,obj.settingsFname);
         end
-
     end %close methods
 
 end %close classdef

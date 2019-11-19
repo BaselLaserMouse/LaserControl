@@ -21,6 +21,9 @@ classdef MPDSaom < laserControl.aom
         % function obj = maitai(serialComms,logObject)
         % serialComms is a string indicating the serial port we should connect to
 
+            % Define a file name for the settings file
+            obj.settingsFname='MPDSaom_settings.mat';
+
             if nargin<1
                 error('MPDSaom requires one argument: you must supply the COM port as a string')
             end
@@ -30,8 +33,6 @@ classdef MPDSaom < laserControl.aom
             obj.controllerID=serialComms;
             success = obj.connect;
 
-            % Define a file name for the settings file
-            obj.settingsFname='MPDSaom_settings.mat';
 
             if ~success
                 fprintf('Component MPDS AOM failed to connect over the serial port.\n')
@@ -83,8 +84,15 @@ classdef MPDSaom < laserControl.aom
                     success=false;
                 end
             end
-            obj.isAomConnected=success;
-            obj.loadSettingsFromDisk;
+            s=obj.getStatusString;
+            if ~isempty(s)
+                obj.isAomConnected=true;
+                obj.loadSettingsFromDisk;
+            else
+                obj.isAomConnected=false;
+                fprintf('AOM does not seem to be responding to serial commands\n')
+            end
+
         end
 
 
@@ -119,68 +127,6 @@ classdef MPDSaom < laserControl.aom
             end
             AOMReady=obj.readAOMBlankingState;
             obj.isAomReady=AOMReady;
-        end
-
-
-        function success=loadSettingsFromDisk(obj)
-            if isempty(obj.settingsPath)
-                success=false
-                fprintf('Failed to find settings file at %s\n',obj.settingsPath)
-                return
-            end
-
-            fprintf('Loading AOM settings from disk and applying\n')
-            load(obj.settingsPath);
-            obj.referenceWavelength = settings.referenceWavelength;
-            obj.referenceFrequency = settings.referenceFrequency;
-            obj.powerTable = settings.powerTable;
-
-            successes=zeros(1,4);
-            if settings.blankingEnabled
-                successes(1)=obj.enableAOMBlanking;
-            else
-                successes(1)=obj.disableAOMBlanking;
-            end
-
-            if strcmp(obj.readAOMBlankingState,'internal')
-                successes(2)=obj.externalAOMBlanking;
-            else
-                successes(2)=obj.internalAOMBlanking;
-            end
-
-            if settings.chanOneEnabled
-                successes(3)=obj.enableChannel;
-            else
-                successes(3)=obj.disableChannel;
-            end
-
-            if strcmp(obj.readChannelState,'internal')
-                successes(4)=obj.internalChannel;
-            else
-                successes(4)=obj.externalChannel;
-            end
-
-            success=all(successes);
-
-            if ~success
-                fprintf('Some settings failed to set correctly\n')
-            end
-
-        end
-
-
-        function writeCurrentStateToSettingsFile(obj)
-            settings.referenceWavelength = obj.referenceWavelength;
-            settings.referenceFrequency = obj.referenceFrequency;
-            settings.powerTable = obj.powerTable;
-
-            settings.blankingEnabled = obj.readAOMBlankingEnabled;
-            settings.blankingState = obj.readAOMBlankingState;
-            settings.chanOneEnabled = obj.readChannelEnabled; %We have only one channel
-            settings.chanOneState = obj.readChannelState; %We have only one channel
-
-            fprintf('Saving settings to %s\n',obj.settingsPath)
-            save(obj.settingsPath,'settings')
         end
 
 
@@ -284,64 +230,7 @@ classdef MPDSaom < laserControl.aom
         function AOMID = readAOMID(obj)
             AOMID='MPDS'; %Can change if we really care
         end
-
-
-        % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        function [success,reply]=sendAndReceiveSerial(obj,commandString,waitForReply)
-            % Send a serial command and optionally read back the reply 
-            if nargin<3
-                waitForReply=true;
-            end
-
-            if isempty(commandString) || ~ischar(commandString)
-                reply='';
-                success=false;
-                return
-            end
-
-            fprintf(obj.hC,commandString);
-
-            if ~waitForReply
-                reply=[];
-                success=true;
-                if obj.hC.BytesAvailable>0
-                    fprintf('Not waiting for reply by there are %d BytesAvailable\n',obj.hC.BytesAvailable)
-                end
-                return
-            end
-
-            reply=fgets(obj.hC);
-            doFlush=1;
-            if obj.hC.BytesAvailable>0
-                if doFlush
-                    fprintf('Read in from the MPDSaom buffer using command "%s" but there are still %d BytesAvailable. Flushing.\n', ...
-                        commandString, obj.hC.BytesAvailable)
-                    flushinput(obj.hC)
-                else
-                    fprintf('Read in from the MPDSaom buffer using command "%s" but there are still %d BytesAvailable. NOT FLUSHING.\n', ...
-                        commandString, obj.hC.BytesAvailable)
-                end
-            end
-
-            if ~isempty(reply)
-                reply(end)=[];
-            else
-                msg=sprintf('MPDSaom serial command %s did not return a reply\n',commandString);
-                success=false;
-                return
-            end
-
-            success=true;
-        end
-
-        % Serial read command for the weird commands that don't use a CR and return a question mark
-        function outStr = nonStandardSerial(obj,commandString)
-            obj.hC.Terminator='';
-            fprintf(obj.hC,commandString); %Because this command does not need a CR
-            obj.hC.Terminator='?'; % Yeah...
-            outStr = fgets(obj.hC);
-            obj.hC.Terminator='CR';
-        end
+        
     end %close methods
 
 
@@ -573,6 +462,7 @@ classdef MPDSaom < laserControl.aom
             fprintf('& power at %d\n', newPower);
             obj.setPower_raw(newPower);
         end
+
     end % hidden methods
 
     
