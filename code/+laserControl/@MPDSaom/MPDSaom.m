@@ -13,7 +13,7 @@ classdef MPDSaom < laserControl.aom
     properties
         referenceWavelength=890 %We will tune the the frequency at this wavelength
         referenceFrequency=104  %This is a default, it can be over-ridden by a saved value
-        powerTable=[890,500; 920,520] %Format: col 1 is wavelength and col 2 is raw power. Can be loaded from disk.
+        powerTable=[750,20; 920,20] %Format: col 1 is wavelength and col 2 is power in dB. Can be loaded from disk.
     end
 
     methods
@@ -424,10 +424,12 @@ classdef MPDSaom < laserControl.aom
             [a,b]=regexp(str,'P.*\)');
             fprintf('%s\n',str(a:b))
         end
+
     end % MPDS-specific
 
     % MPDS-specific hidden
     methods (Hidden=true)
+
         function statusStr = getStatusString(obj)
             % Get the status string. Annoying code because this command follows
             % a different standard to the rest
@@ -460,8 +462,10 @@ classdef MPDSaom < laserControl.aom
             ind = find(delta==min(delta));
             newPower = obj.powerTable(ind,2);
             fprintf('& power at %d\n', newPower);
-            obj.setPower_raw(newPower);
+            obj.setPower_dB(newPower);
         end
+
+
 
     end % hidden methods
 

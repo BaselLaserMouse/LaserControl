@@ -149,4 +149,5 @@ ans =
 * v0.6.50 - MPDS AOM: Is now linked to laser and changes frequency and power automatically.
 * v0.7.00 - startLaserControl now starts the laser and AOM.
 * v0.9.00 - More fine-grained options for setting AOM modes. Tested with laser. 
-* v0.9.30 - Settings load and save from disk.
+* v0.9.50 - Settings load and save from disk.
+* v0.10.50 - Insert current RF power into table, produce reasonable interpolated value if necessary, plot to show RF power (can be converted into something fancier fairly easily). 
