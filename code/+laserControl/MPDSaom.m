@@ -10,11 +10,10 @@ classdef MPDSaom < laserControl.aom
 %
 % Rob Campbell - SWC 2019
 
-
     properties
         referenceWavelength=890 %We will tune the the frequency at this wavelength
         referenceFrequency=104  %This is a default, it can be over-ridden by a saved value
-        powerTable=[890,500; 920,520 ] %Format: col 1 is wavelength and col 2 is raw power. Can be loaded from disk.
+        powerTable=[890,500; 920,520] %Format: col 1 is wavelength and col 2 is raw power. Can be loaded from disk.
         settingsFname='MPDSaom_settings.mat'
     end
 
@@ -294,23 +293,27 @@ classdef MPDSaom < laserControl.aom
 
         function success = disableAOMBlanking(obj)
             obj.sendAndReceiveSerial('L0O0');
-            success = ~obj.readAOMBlankingState;
+            success = ~obj.readAOMBlankingEnabled;
         end
+
 
         function success = enableAOMBlanking(obj)
             obj.sendAndReceiveSerial('L0O1');
-            success = obj.readAOMBlankingState;
+            success = obj.readAOMBlankingEnabled;
         end
+
 
         function success = internalAOMBlanking(obj)
             obj.sendAndReceiveSerial('L0I1');
-            success = true; %TODO: add test
+            success = strcmp(obj.readAOMBlankingState,'internal');
         end
+
 
         function success = externalAOMBlanking(obj)
             obj.sendAndReceiveSerial('L0I0');
-            success = true; %TODO: add test
+            success = strcmp(obj.readAOMBlankingState,'external');
         end
+
 
         function success = disableChannel(obj,chan)
             if nargin<2
@@ -320,30 +323,12 @@ classdef MPDSaom < laserControl.aom
                 chan=num2str(chan);
             end
             obj.sendAndReceiveSerial(['L',chan,'O0']);
-            success = true; %TODO: add test
+            success = ~obj.readChannelEnabled(chan);
+            if isnan(success)
+                success=false;
+            end
         end
 
-        function success = internalChannel(obj,chan)
-            if nargin<2
-                chan=1;
-            end
-            if isnumeric(chan)
-                chan=num2str(chan);
-            end
-            obj.sendAndReceiveSerial(['L',chan,'I1']);
-            success = true; %TODO: add test
-        end
-
-        function success = externalChannel(obj,chan)
-            if nargin<2
-                chan=1;
-            end
-            if isnumeric(chan)
-                chan=num2str(chan);
-            end
-            obj.sendAndReceiveSerial(['L',chan,'I0']);
-            success = true; %TODO: add test
-        end
 
         function success = enableChannel(obj,chan)
             if nargin<2
@@ -353,10 +338,39 @@ classdef MPDSaom < laserControl.aom
                 chan=num2str(chan);
             end
             obj.sendAndReceiveSerial(['L',chan,'O1']);
-            success = true; %TODO: add test
+            success = obj.readChannelEnabled(chan);
+            if isnan(success)
+                success=false;
+            end
         end
 
-        function state = readAOMBlankingState(obj,statusStr)
+
+        function success = internalChannel(obj,chan)
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            obj.sendAndReceiveSerial(['L',chan,'I1']);
+            success = strcmp(obj.readChannelState(chan),'internal');
+        end
+
+
+        function success = externalChannel(obj,chan)
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            obj.sendAndReceiveSerial(['L',chan,'I0']);
+            success = strcmp(obj.readChannelState(chan),'external');
+        end
+
+
+        function state = readAOMBlankingEnabled(obj,statusStr)
+            % Returns true if blanking is enabled. False if disabled.
             if nargin<2
                 statusStr = obj.getStatusString;
             end
@@ -366,6 +380,69 @@ classdef MPDSaom < laserControl.aom
                 state=false;
             end
         end
+
+
+        function state = readAOMBlankingState(obj,statusStr)
+            % Returns a string describing if the blanking is 'internal' or 'external'
+            if nargin<2
+                statusStr = obj.getStatusString;
+            end
+            tok=regexp(statusStr,'Blanking \w+ (\w+)','tokens');
+            state = lower(tok{1}{1});
+        end
+
+
+        function state = readChannelEnabled(obj,chan,statusStr)
+            % Returns true if the defined channel is "On".
+            % Returns NaN if the channel was not found
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            if nargin<3
+                statusStr = obj.getStatusString;
+            end
+
+            tok=regexp(statusStr,['l',chan,' F=.*? P=.*? (O[NF]+) [EI]\w+.*Blanking'],'tokens');
+            if isempty(tok)
+                fprintf('Channel %s not found by MPDSaom.readChannelState\n', chan)
+                state=NaN;
+                return 
+            end
+            if strcmp('ON',tok{1}{1})
+                state=true;
+            elseif strcmp('OFF',tok{1}{1})
+                state=false;
+            end
+
+        end
+
+
+        function state = readChannelState(obj,chan,statusStr)
+            % Returns a string describing if the defined channel is to 'internal' or 'external'.
+            % External is used for commanding power with a 0 to 10V drive signal.
+            % Returns false if the channel was not found
+            if nargin<2
+                chan=1;
+            end
+            if isnumeric(chan)
+                chan=num2str(chan);
+            end
+            if nargin<3
+                statusStr = obj.getStatusString;
+            end
+
+            tok=regexp(statusStr,['l',chan,' F=.*? P=.*? O[NF]+ (\w+).*Blanking'],'tokens');
+            if isempty(tok)
+                fprintf('Channel %s not found by MPDSaom.readChannelState\n', chan)
+                state=false;
+                return 
+            end
+            state = lower(tok{1}{1});
+        end
+
 
 
         % Nudge commands for frequency and power (return to CLI the current values)
