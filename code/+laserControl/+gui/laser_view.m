@@ -180,6 +180,11 @@ classdef laser_view < laserControl.gui.child_view
                 delete(obj.currentWavelengthTimer)
             end
 
+            %If there is an open AOM view we should close it
+            f=findall(0,'Tag', 'laserControl_aom')
+            if ~isempty(f)
+                delete(f)
+            end
             delete@laserControl.gui.child_view(obj);
         end
 
