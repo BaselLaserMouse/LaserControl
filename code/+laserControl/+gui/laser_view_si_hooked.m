@@ -20,7 +20,7 @@ classdef laser_view_si_hooked < laserControl.gui.laser_view
 
             %If ScanImage is connected we can build additional GUI components
             if ~isempty(obj.hSI)
-            obj.listeners{end+1} = addlistener(obj.hC, 'active', 'PostSet', @obj.isAcquiring);
+            obj.listeners{end+1} = addlistener(obj.hSI, 'acqState', 'PostSet', @obj.isAcquiring);
             end
         end
 
