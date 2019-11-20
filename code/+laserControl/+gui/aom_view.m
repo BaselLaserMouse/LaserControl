@@ -36,7 +36,7 @@ classdef aom_view < laserControl.gui.child_view
         currentRefWavelengthString='Current Ref Wavelength: %d nm' %Used in the sprintf for the current reference wavelength
         setWavelengthLabel
         isScanImageConnected=false %If scanimage is connected to the laser GUI, we can access it and do awesome stuff
-
+        previousSIpower %Used to return ScanImage to previous power setting upon leaving tweak mode
     end
 
 
@@ -456,17 +456,24 @@ classdef aom_view < laserControl.gui.child_view
             obj.inRF_powerTweakMode = ~obj.inRF_powerTweakMode;
 
             if obj.inRF_powerTweakMode
+                %Point the beam, open shutter, set power to max (direct mode)
                 obj.button_insertRF_power.Enable='on';
                 obj.button_RF_powerTweakMode.String='Leave tweak';
                 if strcmpi(obj.parentView.hSI.acqState,'idle')
-                     obj.parentView.hSI.scanPointBeam
+                    obj.parentView.hSI.scanPointBeam
+                    obj.previousSIpower=obj.parentView.hSI.hBeams.powers;
+                    obj.parentView.hSI.hBeams.powers=100;
+                    obj.parentView.hSI.hBeams.directMode=true;
                 else
                     fprintf('ScanImage not idle. Not entering tweak mode\n')
                     return
                 end
             else
+                %Leave point mode and return power to previous level
                 obj.button_insertRF_power.Enable='off';
                 obj.button_RF_powerTweakMode.String='Enter tweak';
+                obj.parentView.hSI.hBeams.directMode=false;
+                obj.parentView.hSI.hBeams.powers=obj.previousSIpower;
                 obj.parentView.hSI.hCycleManager.abort;
             end
 
