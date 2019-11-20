@@ -6,9 +6,6 @@ classdef aom_view < laserControl.gui.child_view
         powerPanel % Elements for power setting go here
         connectionText
 
-        %laserPowerText
-
-
         % Buttons
         button_LoadSettings
         button_SaveSettings
@@ -25,7 +22,7 @@ classdef aom_view < laserControl.gui.child_view
         checkBox_externalVoltageControl
 
         editFreq
-        editRefPower
+        editRF_power
 
         currentFrequencyText
         currentRefWavelength
@@ -38,7 +35,14 @@ classdef aom_view < laserControl.gui.child_view
         currentPowerString='Current RF Power: %2.2f dB' %Used in the sprintf for the current power
         currentRefWavelengthString='Current Ref Wavelength: %d nm' %Used in the sprintf for the current reference wavelength
         setWavelengthLabel
+
     end
+
+
+    properties (SetObservable)
+        inRF_powerTweakMode=false;
+    end
+
 
     methods
         function obj = aom_view(hAOM,parentView)
@@ -107,7 +111,8 @@ classdef aom_view < laserControl.gui.child_view
                 'FontSize', obj.fSize, ...
                 'FontWeight', 'bold', ...
                 'String', '<html>Tune laser to<br />reference &lambda</html>', ...
-                'Callback', @obj.loadSettingsButtonCallBack);
+                'Tooltip', 'Tune laser to reference frequency to enable reference frequency updating', ...
+                'Callback', @obj.tuneLaserToRefWavelengthButtonCallback);
 
             obj.button_updateReferenceFreq = uicontrol(...
                 'Parent', obj.freqPanel, ...
@@ -115,10 +120,12 @@ classdef aom_view < laserControl.gui.child_view
                 'FontSize', obj.fSize, ...
                 'FontWeight', 'bold', ...
                 'String', '<html>Update ref<br />frequency</html>', ...
-                'Callback', @obj.loadSettingsButtonCallBack);
+                'Enable', 'Off', ...
+                'Tooltip', 'Set reference frequency to current frequency', ...
+                'Callback', @obj.updateRefWavelengthButtonCallback);
 
             % Power editing
-            obj.editRefPower=uicontrol(...
+            obj.editRF_power=uicontrol(...
                 'Parent', obj.hFig, ...
                 'Style','edit', ...
                 'Position', [5, 107, 75, 20], ...
@@ -132,8 +139,9 @@ classdef aom_view < laserControl.gui.child_view
                 'Position', [5, 5, 90, 20], ...
                 'FontSize', obj.fSize, ...
                 'FontWeight', 'bold', ...
-                'String', 'Tweak mode', ...
-                'Callback', @obj.loadSettingsButtonCallBack);
+                'Tooltip', 'Enters and leaves power tweak mode', ...
+                'String', 'Enter tweak', ...
+                'Callback', @obj.tweakModeButtonCallBack);
 
             obj.button_insertRF_power = uicontrol(...
                 'Parent', obj.powerPanel, ...
@@ -141,7 +149,7 @@ classdef aom_view < laserControl.gui.child_view
                 'FontSize', obj.fSize, ...
                 'FontWeight', 'bold', ...
                 'String', 'Add value', ...
-                'Callback', @obj.loadSettingsButtonCallBack);
+                'Callback', @obj.insertRF_powerValueFromTableButtonCallback);
 
             obj.button_removeRF_power = uicontrol(...
                 'Parent', obj.powerPanel, ...
@@ -149,7 +157,7 @@ classdef aom_view < laserControl.gui.child_view
                 'FontSize', obj.fSize, ...
                 'FontWeight', 'bold', ...
                 'String', 'Remove value', ...
-                'Callback', @obj.loadSettingsButtonCallBack);        
+                'Callback', @obj.removeRF_powerValueFromTableButtonCallback);        
 
             obj.button_showPowerFig = uicontrol(...
                 'Parent', obj.powerPanel, ...
@@ -157,13 +165,14 @@ classdef aom_view < laserControl.gui.child_view
                 'FontSize', obj.fSize, ...
                 'FontWeight', 'bold', ...
                 'String', 'Show fig', ...
-                'Callback', @obj.loadSettingsButtonCallBack);   
+                'Callback', @obj.showPowerFigButtonCallback);   
 
             obj.connectionText = obj.makeTextLabel(obj.hFig,[4, 35, 220 20],'');
             set(obj.connectionText, 'HorizontalAlignment', 'Left');
             obj.updateAOMConnectedElements %Updates string of above text label
 
-            %obj.laserPowerText = obj.makeTextLabel(obj.freqPanel,[0, 29, 130 20],'Power: 0 mW');
+            obj.updateLaserWavelengthRelatedElements; %Ensure button state is correct
+
 
 
             % Buttons
@@ -196,7 +205,9 @@ classdef aom_view < laserControl.gui.child_view
                 'BackgroundColor', obj.hFig.Color, ...
                 'ForegroundColor', 'w', ...
                 'Value', obj.model.aom.currentExternalBlankingEnabled, ...
+                'Callback', @obj.setExternalBlankingCallback, ....
                 'Position', [8,98,200,20]);
+
             obj.checkBox_externalVoltageControl = uicontrol( ...
                 'Style','checkbox', ...
                 'parent', obj.hFig, ...
@@ -206,6 +217,7 @@ classdef aom_view < laserControl.gui.child_view
                 'BackgroundColor', obj.hFig.Color, ...
                 'ForegroundColor', 'w', ...
                 'Value', obj.model.aom.currentExternalChannel, ...
+                'Callback', @obj.setExternalVoltageCallback, ....
                 'Position', [8,115,200,20]);
 
 
@@ -217,7 +229,7 @@ classdef aom_view < laserControl.gui.child_view
 
             %Add some listeners to monitor properties on the laser and AOM components
             fprintf('Setting up AOM GUI listeners\n')
-            obj.listeners{1}=addlistener(obj.parentView.model.laser, 'currentWavelength', 'PostSet', @obj.laserWavelengthUpdate);
+            obj.listeners{1}=addlistener(obj.parentView.model.laser, 'currentWavelength', 'PostSet', @obj.updateLaserWavelengthRelatedElements);
             obj.listeners{2}=addlistener(obj.model.aom, 'isAomConnected', 'PostSet', @obj.updateAOMConnectedElements);
             obj.listeners{3}=addlistener(obj.model.aom, 'referenceWavelength', 'PostSet', @obj.updateRefWavelengthTextCallback);            
             obj.listeners{4}=addlistener(obj.model.aom, 'currentFrequency', 'PostSet', @obj.updateFreqTextCallback);            
@@ -242,43 +254,32 @@ classdef aom_view < laserControl.gui.child_view
 
         % UI Callback functions
         function setFreqEditPanel(obj,~,~)
-            %Runs when the user enters a new value in the panel
-
-            newValue=get(obj.editWavelength,'String');
-
+            %Runs when the user enters a new value in the frequency edit box
+            newValue=get(obj.editFreq,'String');
             newValue=str2double(newValue);
             if isempty(newValue) || isnan(newValue)
                 %If it wasn't numeric, set it back to what it was before
                 fprintf('Not a valid wavelength value\n');
-                %set(obj.editFreq,'String',obj.model.aom.targetWavelength)
                 return
             end
-
-            %TODO: re-read from device? Or, better, use observable properties for everything
-
-            %Will trigger setWavelengthEditPanelToNewTargetWaveLength
-            obj.model.aom.setWavelength(newValue);
-
+            obj.model.aom.setFrequency(newValue);
         end
 
 
+
+
         function setPowerEditPanel(obj,~,~)
-            %Runs when the user enters a new value in the panel
-
-            newValue=get(obj.editPower,'String');
-
+            %Runs when the user enters a new value in the power edit box
+            newValue=get(obj.editRF_power,'String');
             newValue=str2double(newValue);
             if isempty(newValue) || isnan(newValue)
                 %If it wasn't numeric, set it back to what it was before
                 fprintf('Not a valid RF power value\n');
-                %set(obj.editFreq,'String',obj.model.aom.targetWavelength)
                 return
             end
 
-            %TODO: re-read from device? Or, better, use observable properties for everything
-
             %Will trigger setWavelengthEditPanelToNewTargetWaveLength
-            obj.model.aom.setWavelength(newValue);
+            obj.model.aom.setPower_dB(newValue);
 
         end
 
@@ -313,18 +314,30 @@ classdef aom_view < laserControl.gui.child_view
 
         %The following methods are used to load and save settings
         function loadSettingsButtonCallBack(obj,~,~)
-            if ~obj.model.aom.isControllerConnected
-                return
-            end
             obj.model.aom.loadSettingsFromDisk
         end
 
 
         function saveSettingsButtonCallBack(obj,~,~)
-            if ~obj.model.aom.isControllerConnected
-                return
-            end
             obj.model.aom.writeCurrentStateToSettingsFile
+        end
+
+
+        function setExternalBlankingCallback(obj,~,~)
+            if obj.checkBox_blankingExternal.Value == true
+                obj.model.aom.externalAOMBlanking;
+            else
+                obj.model.aom.internalAOMBlanking;
+            end
+        end
+
+
+        function setExternalVoltageCallback(obj,~,~)
+            if obj.checkBox_externalVoltageControl.Value == true
+                obj.model.aom.externalChannel;
+            else
+                obj.model.aom.internalChannel;
+            end
         end
 
 
@@ -362,10 +375,75 @@ classdef aom_view < laserControl.gui.child_view
             end
             set(obj.currentPowerText,'String', ...
                 sprintf(obj.currentPowerString,obj.model.aom.currentRFpower_dB))
-            set(obj.editRefPower,'String',obj.model.aom.currentRFpower_dB)
+            set(obj.editRF_power,'String',obj.model.aom.currentRFpower_dB)
         end
 
-        function laserWavelengthUpdate(obj,~,~)
+
+        function updateLaserWavelengthRelatedElements(obj,~,~)
+            cL = obj.parentView.model.laser.currentWavelength;
+            rL = obj.model.aom.referenceWavelength;
+            pT = obj.model.aom.powerTable;
+            if isempty(cL)
+                return
+            end
+            % The reference frequency should only be settable if the
+            % user has set the laser to the reference wavelength
+            if abs(rL-cL)<2
+                obj.button_updateReferenceFreq.Enable='on';
+            else
+                obj.button_updateReferenceFreq.Enable='off';
+            end
+
+            % It's only possible to remove a value from the power table
+            % if the laser wavelength is at that value's wavelength
+            f=find(pT(:,1)==cL);
+            if isempty(f)
+                obj.button_removeRF_power.Enable='off';
+            else
+                obj.button_removeRF_power.Enable='on';
+            end
+
+        end
+
+
+        function updateRefWavelengthButtonCallback(obj,~,~)
+            obj.model.aom.referenceFrequency = obj.model.aom.readFrequency;
+        end
+
+
+        function tuneLaserToRefWavelengthButtonCallback(obj,~,~)
+            fprintf('Tuning laser to %d nm\n',obj.model.aom.referenceWavelength)
+            obj.parentView.model.laser.setWavelength(obj.model.aom.referenceWavelength)
+        end
+
+
+        function showPowerFigButtonCallback(obj,~,~)
+            obj.model.aom.makePowerWavelengthFig
+        end
+
+
+
+        function insertRF_powerValueFromTableButtonCallback(obj,~,~)
+            obj.model.aom.removeRF_powerFromTable;
+        end
+
+
+        function removeRF_powerValueFromTableButtonCallback(obj,~,~)
+            obj.model.aom.removeRF_powerFromTable;
+        end
+
+
+        function tweakModeButtonCallBack(obj,~,~)
+            obj.inRF_powerTweakMode = ~obj.inRF_powerTweakMode;
+
+            if obj.inRF_powerTweakMode
+                obj.button_insertRF_power.Enable='on';
+                obj.button_RF_powerTweakMode.String='Leave tweak';
+            else
+                obj.button_insertRF_power.Enable='off';
+                obj.button_RF_powerTweakMode.String='Enter tweak';
+            end
+
         end
 
         function updatePowerText(obj)

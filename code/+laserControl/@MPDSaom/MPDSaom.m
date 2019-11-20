@@ -143,7 +143,6 @@ classdef MPDSaom < laserControl.aom
 
 
         function success = setFrequency(obj, frequencyInMHz)
-
             % Round requency to two decimal places and send to driver
             frequencyInMHz = round(frequencyInMHz,2);
             cmd = sprintf('L1F%3.2f',frequencyInMHz);
