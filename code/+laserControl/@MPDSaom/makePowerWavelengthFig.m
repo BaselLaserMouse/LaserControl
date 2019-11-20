@@ -32,11 +32,10 @@ function varargout=makePowerWavelengthFig(obj)
     end
 
     % Embelish plot
-    xlabel('Laser wavelength (nm)')
-    ylabel('AOM RF Power')
-    ylim([0,40])
-    xlim([700,1100])
-
-    box on 
-    grid on
-
+    set(ax, ...
+        'YLim', [0,40], ...
+        'XLim', [700,1100], ...
+        'Box', 'on');
+    xlabel(ax,'Laser wavelength (nm)')
+    ylabel(ax,'AOM RF Power')
+    grid(ax,'on')
