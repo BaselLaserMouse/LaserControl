@@ -35,7 +35,15 @@ classdef (Abstract) aom < handle
         listeners = {}
         settingsFname % Settings for the device go in a file (e.g. MAT file) named thus. This value
                       % should be defined as soon as possible in the concrete class constructor. 
+        friendlyName='aom' % Used for things like figure titles for associated GUIs
+
+        minFrequency
+        maxFrequency
+ 
+        minPower
+        maxPower
     end %close hidden properties
+
 
 
     properties (SetObservable)
@@ -46,10 +54,15 @@ classdef (Abstract) aom < handle
 
 
     properties (Hidden,SetObservable)
-        currentRFpower_dB
-        currentFrequency
-        friendlyName='aom'
+        % GUIs can listen to these
+        currentRFpower_dB  % Current RF power at crystal 
+        currentFrequency   % Current RF frequency
+
+        %The following should be true/false not "internal"/"external"
+        currentExternalBlankingEnabled    % Whether we are currently using external blanking (gating)
+        currentExternalChannel    % Whether we are currently accepting an external signal for controlling laser power or doing it internally
     end
+
 
     % These are GUI-related properties. The view class that comprises the GUI listens to changes in these
     % properties to know when to update the GUI. It is therefore necessary for these to be updated as 
@@ -57,13 +70,6 @@ classdef (Abstract) aom < handle
     % property must be set to true. Failing to do this will cause the GUI to fail to update. All 
     % properties in this section should be updated in the constructor once the AOM is connected
     properties (Hidden, SetObservable, AbortSet)
-        minFrequency
-        maxFrequency
- 
-        minPower
-        maxPower
-
-
         % TODO: the following are likely really bad practice
         isAomConnected=false % Set by isControllerConnected. Must be set to true when the AOM controller has been connected
         isAomReady=false % Must be updated by isReady

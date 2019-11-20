@@ -20,12 +20,12 @@ classdef MPDSaom < laserControl.aom
 
             % Set some values to the AOM tuning parameters in case the user
             % has not yet created a settings file. 
-            obj.referenceWavelength=890; %We will tune the the frequency at this wavelength
-            obj.referenceFrequency=104;  %This is a default, it can be over-ridden by a saved value
+            obj.referenceWavelength=790; %We will tune the the frequency at this wavelength
+            obj.referenceFrequency=118;  %This is a default, it can be over-ridden by a saved value
             obj.powerTable=[750,20; 920,20]; %Format: col 1 is wavelength and col 2 is power in dB. Can be loaded from disk.
 
             obj.friendlyName='MPDS AOM';
-        
+
             if nargin<1
                 error('MPDSaom requires one argument: you must supply the COM port as a string')
             end
@@ -43,7 +43,7 @@ classdef MPDSaom < laserControl.aom
             end
 
 
-            %Report connection 
+            %Report Connectedion 
             fprintf('Connected to MPDS AOM on %s\n', serialComms)
 
 
@@ -138,6 +138,7 @@ classdef MPDSaom < laserControl.aom
             end
             T=regexp(statusStr,' F=(\d+\.\d+) P=','tokens');
             frequency = str2double(T{1}{1});
+            obj.currentFrequency = frequency; % Updates observable property that can be used by GUIs
         end
 
 
@@ -159,12 +160,16 @@ classdef MPDSaom < laserControl.aom
             end
         end
 
+
         function AOMPower = readPower(obj,statusStr)
             if nargin<2
                 statusStr=[];
             end
             AOMPower = obj.readPower_dB(statusStr);
+            obj.currentRFpower_dB = AOMPower; % Updates observable property that can be used by GUIs
         end
+
+
         function success = setPower(obj,powerIn_dB)
             success = obj.setPower_dB(powerIn_dB);
         end
@@ -177,6 +182,7 @@ classdef MPDSaom < laserControl.aom
             end
             T=regexp(statusStr,' P=(\d+\.\d+) ','tokens');
             AOMPower = str2double(T{1}{1});
+            obj.currentRFpower_dB = AOMPower; % Updates observable property that can be used by GUIs
         end
 
 
@@ -341,6 +347,12 @@ classdef MPDSaom < laserControl.aom
             end
             tok=regexp(statusStr,'Blanking \w+ (\w+)','tokens');
             state = lower(tok{1}{1});
+            % Sets observable property for GUIs
+            if strcmp(state,'internal')
+                obj.currentExternalBlankingEnabled=false;
+            else
+                obj.currentExternalBlankingEnabled=true;
+            end
         end
 
 
@@ -393,7 +405,14 @@ classdef MPDSaom < laserControl.aom
                 return 
             end
             state = lower(tok{1}{1});
+            % Sets observable property for GUIs
+            if strcmp(state,'internal')
+                obj.currentExternalChannel=false;
+            else
+                obj.currentExternalChannel=true;
+            end
         end
+
 
 
 

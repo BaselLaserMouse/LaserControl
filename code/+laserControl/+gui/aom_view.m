@@ -59,15 +59,16 @@ classdef aom_view < laserControl.gui.child_view
             % Closing the figure closes the laser view object
             set(obj.hFig,'CloseRequestFcn', @obj.closeComponentView)
 
-            fprintf('Checking AOM is connected\n')
-            if obj.model.aom.isAomConnected
-                fprintf('Doing first read of AOM frequency\n')
-                currentFrequency=obj.model.aom.readFrequency;
-                currentRFPower=obj.model.aom.readPower_dB;
-            else
-                currentFrequency=0;
+            if ~obj.model.aom.isAomConnected
+                fprintf('\nAOM NOT CONNECTED\n')
+                return
             end
 
+            %Read current settings to ensure the observable values are populated
+            obj.model.aom.readFrequency;
+            obj.model.aom.readPower_dB;
+            obj.model.aom.readAOMBlankingState;
+            obj.model.aom.readChannelState;
 
             %Resize the figure window
             pos=get(obj.hFig, 'Position');
@@ -83,11 +84,6 @@ classdef aom_view < laserControl.gui.child_view
             iptwindowalign(obj.parentView.hFig, 'right', obj.hFig, 'left');
             iptwindowalign(obj.parentView.hFig, 'top', obj.hFig, 'top');
 
-            %Add some listeners to monitor properties on the laser component
-            fprintf('Setting up AOM GUI listeners\n')
-            obj.listeners{1}=addlistener(obj.parentView.model.laser, 'currentWavelength', 'PostSet', @obj.laserWavelengthUpdate);
-
-
             % Make the status panel
             fprintf('Building AOM GUI elements\n')
             obj.freqPanel = laserControl.gui.newGenericGUIPanel([6, 145, 104, 150], obj.hFig);
@@ -101,7 +97,7 @@ classdef aom_view < laserControl.gui.child_view
                 'Style','edit', ...
                 'Position', [5, 107, 75, 20], ...
                 'FontSize', obj.fSize, ...
-                'String', currentFrequency, ...
+                'String', obj.model.aom.currentFrequency, ...
                 'Parent', obj.freqPanel, ...
                 'Callback', @obj.setFreqEditPanel);
 
@@ -112,6 +108,7 @@ classdef aom_view < laserControl.gui.child_view
                 'FontWeight', 'bold', ...
                 'String', '<html>Tune laser to<br />reference &lambda</html>', ...
                 'Callback', @obj.loadSettingsButtonCallBack);
+
             obj.button_updateReferenceFreq = uicontrol(...
                 'Parent', obj.freqPanel, ...
                 'Position', [5, 10, 90, 35], ...
@@ -126,7 +123,7 @@ classdef aom_view < laserControl.gui.child_view
                 'Style','edit', ...
                 'Position', [5, 107, 75, 20], ...
                 'FontSize', obj.fSize, ...
-                'String', currentRFPower, ...
+                'String', obj.model.aom.currentRFpower_dB, ...
                 'Parent', obj.powerPanel, ...
                 'Callback', @obj.setPowerEditPanel);
 
@@ -162,8 +159,9 @@ classdef aom_view < laserControl.gui.child_view
                 'String', 'Show fig', ...
                 'Callback', @obj.loadSettingsButtonCallBack);   
 
-            obj.connectionText = obj.makeTextLabel(obj.hFig,[4, 35, 220 20],'AOM Connected: NO');
+            obj.connectionText = obj.makeTextLabel(obj.hFig,[4, 35, 220 20],'');
             set(obj.connectionText, 'HorizontalAlignment', 'Left');
+            obj.updateAOMConnectedElements %Updates string of above text label
 
             %obj.laserPowerText = obj.makeTextLabel(obj.freqPanel,[0, 29, 130 20],'Power: 0 mW');
 
@@ -197,6 +195,7 @@ classdef aom_view < laserControl.gui.child_view
                 'FontWeight', 'bold', ...
                 'BackgroundColor', obj.hFig.Color, ...
                 'ForegroundColor', 'w', ...
+                'Value', obj.model.aom.currentExternalBlankingEnabled, ...
                 'Position', [8,98,200,20]);
             obj.checkBox_externalVoltageControl = uicontrol( ...
                 'Style','checkbox', ...
@@ -206,13 +205,23 @@ classdef aom_view < laserControl.gui.child_view
                 'String', 'External voltage control',...
                 'BackgroundColor', obj.hFig.Color, ...
                 'ForegroundColor', 'w', ...
+                'Value', obj.model.aom.currentExternalChannel, ...
                 'Position', [8,115,200,20]);
 
 
             %Text labels
             obj.currentRefWavelength = obj.makeTextLabel(obj.hFig,[4, 50, 210, 20],sprintf(obj.currentRefWavelengthString,obj.model.aom.referenceWavelength));
-            obj.currentFrequencyText = obj.makeTextLabel(obj.hFig,[4, 65, 210, 20],sprintf(obj.currentFrequencyString,currentFrequency));
-            obj.currentPowerText = obj.makeTextLabel(obj.hFig,[4, 80, 210, 20],sprintf(obj.currentPowerString,currentRFPower));
+            obj.currentFrequencyText = obj.makeTextLabel(obj.hFig,[4, 65, 210, 20],sprintf(obj.currentFrequencyString,obj.model.aom.readFrequency));
+            obj.currentPowerText = obj.makeTextLabel(obj.hFig,[4, 80, 210, 20],sprintf(obj.currentPowerString,obj.model.aom.readPower_dB));
+
+
+            %Add some listeners to monitor properties on the laser and AOM components
+            fprintf('Setting up AOM GUI listeners\n')
+            obj.listeners{1}=addlistener(obj.parentView.model.laser, 'currentWavelength', 'PostSet', @obj.laserWavelengthUpdate);
+            obj.listeners{2}=addlistener(obj.model.aom, 'isAomConnected', 'PostSet', @obj.updateAOMConnectedElements);
+            obj.listeners{3}=addlistener(obj.model.aom, 'referenceWavelength', 'PostSet', @obj.updateRefWavelengthTextCallback);            
+            obj.listeners{4}=addlistener(obj.model.aom, 'currentFrequency', 'PostSet', @obj.updateFreqTextCallback);            
+            obj.listeners{5}=addlistener(obj.model.aom, 'currentRFpower_dB', 'PostSet', @obj.updateRFpowerTextCallback);
 
 
             %Set the GUI elements to reflect the current state of the laser
@@ -301,11 +310,13 @@ classdef aom_view < laserControl.gui.child_view
         end
 
 
+
         %The following methods are used to load and save settings
         function loadSettingsButtonCallBack(obj,~,~)
             if ~obj.model.aom.isControllerConnected
                 return
             end
+            obj.model.aom.loadSettingsFromDisk
         end
 
 
@@ -313,17 +324,46 @@ classdef aom_view < laserControl.gui.child_view
             if ~obj.model.aom.isControllerConnected
                 return
             end
+            obj.model.aom.writeCurrentStateToSettingsFile
         end
 
 
         function updateAOMConnectedElements(obj,~,~)
-            if obj.model.aom.isLaserConnected==true
+            if obj.model.aom.isAomConnected==true
                 set(obj.connectionText, 'String', 'AOM Connected: YES')
-            elseif obj.model.aom.isLaserConnected==false
+            elseif obj.model.aom.isAomConnected==false
                 set(obj.connectionText, 'String', 'AOM Connected: NO')
             end
         end %updateAOMConnectedElements
 
+
+        function updateRefWavelengthTextCallback(obj,~,~)
+            if ~obj.model.aom.isControllerConnected
+                return
+            end
+            set(obj.currentRefWavelength,'String', ...
+                sprintf(obj.currentRefWavelengthString,obj.model.aom.referenceWavelength))
+        end
+
+
+        function updateFreqTextCallback(obj,~,~)
+            if ~obj.model.aom.isControllerConnected
+                return
+            end
+            set(obj.currentFrequencyText,'String', ...
+                sprintf(obj.currentFrequencyString,obj.model.aom.currentFrequency))
+            set(obj.editFreq,'String',obj.model.aom.currentFrequency)
+        end
+
+
+        function updateRFpowerTextCallback(obj,~,~)
+            if ~obj.model.aom.isControllerConnected
+                return
+            end
+            set(obj.currentPowerText,'String', ...
+                sprintf(obj.currentPowerString,obj.model.aom.currentRFpower_dB))
+            set(obj.editRefPower,'String',obj.model.aom.currentRFpower_dB)
+        end
 
         function laserWavelengthUpdate(obj,~,~)
         end

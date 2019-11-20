@@ -153,4 +153,5 @@ ans =
 * v0.10.50 - Insert current RF power into table, produce reasonable interpolated value if necessary, plot to show RF power (can be converted into something fancier fairly easily). 
 * v0.11.00 - Add sub-class laser GUI that will be attached to ScanImage
 * v0.13.00 - Tie up loose ends and start work on full GUI for AOM.
+* v0.14.00 - GUI reads from model. Saves and loads settings. 
 
