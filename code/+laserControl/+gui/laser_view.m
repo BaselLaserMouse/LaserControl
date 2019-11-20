@@ -181,7 +181,7 @@ classdef laser_view < laserControl.gui.child_view
             end
 
             %If there is an open AOM view we should close it
-            f=findall(0,'Tag', 'laserControl_aom')
+            f=findall(0,'Tag', 'laserControl_aom');
             if ~isempty(f)
                 delete(f)
             end

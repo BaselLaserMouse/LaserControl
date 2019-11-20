@@ -155,4 +155,5 @@ ans =
 * v0.13.00 - Tie up loose ends and start work on full GUI for AOM.
 * v0.14.00 - AOM GUI reads from model. Saves and loads settings. 
 * v0.15.00 - AOM GUI sets values in model. 
-* v0.16.00 - AOM GUI is talking to ScanImage via SI-hookable Laser GUI
+* v0.16.00 - AOM GUI is talking to ScanImage via SI-hookable Laser GUI.
+* v0.16.50 - Link to ScanImage for laser control is working.

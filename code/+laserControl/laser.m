@@ -22,6 +22,8 @@ classdef (Abstract) laser < handle
         hC  %A handle to the hardware object or port (e.g. COM port) used to 
             %control the laser.
 
+        hAOM %An AOM optionall attached to this laser
+
         controllerID % The information required by the method that connects to the 
                      % the controller at connect-time. This can be specified in whatever
                      % way is most suitable for the hardware at hand. 
