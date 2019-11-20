@@ -47,8 +47,7 @@ classdef laser_view_si_hooked < laserControl.gui.laser_view
             %Returns true if a focus, loop, or grab is in progress even if the system is not
             %currently acquiring a frame. Stops the regular update timer, etc, during
             %acquisition. 
-            obj.isSIAcquiring = ~strcmp(obj.hC.acqState,'idle');
-
+            obj.isSIAcquiring = ~strcmp(obj.hSI.acqState,'idle');
             if obj.isSIAcquiring
                 obj.disableRegularGUIupdates
             else
@@ -60,14 +59,18 @@ classdef laser_view_si_hooked < laserControl.gui.laser_view
 
         function enableRegularGUIupdates(obj)
             fprintf('Resuming regular laser GUI updates.\n')
-            start(obj.laserViewUpdateTimer)
+            if ~strcmp(obj.laserViewUpdateTimer.Running,'on')
+                start(obj.laserViewUpdateTimer)
+            end
             %TODO: visual changes that GUI has stopped updating
         end
 
 
         function disableRegularGUIupdates(obj)
             fprintf('Stopping regular laser GUI updates.\n')
-            stop(obj.laserViewUpdateTimer)
+            if ~strcmp(obj.laserViewUpdateTimer.Running,'off')
+                stop(obj.laserViewUpdateTimer)
+            end
             %TODO: visual changes that GUI has stopped updating
         end
 
