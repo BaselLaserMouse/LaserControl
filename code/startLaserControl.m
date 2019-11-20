@@ -23,7 +23,7 @@ end
 hLaser = buildComponent(settings.laser.type,settings.laser.COM);
 
 % Build laser GUI
-hGUI=laserControl.gui.laser_view(hLaser);
+hGUI_laser=laserControl.gui.laser_view(hLaser);
 
 
 % Optionally build the AOM and link to the laser
@@ -37,7 +37,7 @@ end
 
 % Assign to base workspace
 hLaserControl.hLaser = hLaser;
-hLaserControl.hGUI = hGUI;
+hLaserControl.hGUI_laser = hGUI_laser;
 hLaserControl.hAOM = hAOM;
 if nargout>0
     varargout{1}=hLaserControl;

@@ -34,7 +34,7 @@ classdef laser_view < laserControl.gui.child_view
             if nargin>0
                 obj.model.laser = hLaser;
             else
-                fprintf('Can''t build laser_view: please supply hBT as an input argument\n');
+                fprintf('Can''t build laser_view: please supply a laser object as an input argument\n');
                 return
             end
 

@@ -48,6 +48,7 @@ classdef (Abstract) aom < handle
     properties (Hidden,SetObservable)
         currentRFpower_dB
         currentFrequency
+        friendlyName='aom'
     end
 
     % These are GUI-related properties. The view class that comprises the GUI listens to changes in these
@@ -64,7 +65,7 @@ classdef (Abstract) aom < handle
 
 
         % TODO: the following are likely really bad practice
-        isAomConnected=false % Set by isControllerConnected
+        isAomConnected=false % Set by isControllerConnected. Must be set to true when the AOM controller has been connected
         isAomReady=false % Must be updated by isReady
     end %close GUI-related properties
 

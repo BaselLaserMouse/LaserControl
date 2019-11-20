@@ -24,6 +24,8 @@ classdef MPDSaom < laserControl.aom
             obj.referenceFrequency=104;  %This is a default, it can be over-ridden by a saved value
             obj.powerTable=[750,20; 920,20]; %Format: col 1 is wavelength and col 2 is power in dB. Can be loaded from disk.
 
+            obj.friendlyName='MPDS AOM';
+        
             if nargin<1
                 error('MPDSaom requires one argument: you must supply the COM port as a string')
             end
