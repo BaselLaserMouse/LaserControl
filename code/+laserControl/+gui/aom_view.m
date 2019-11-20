@@ -35,6 +35,7 @@ classdef aom_view < laserControl.gui.child_view
         currentPowerString='Current RF Power: %2.2f dB' %Used in the sprintf for the current power
         currentRefWavelengthString='Current Ref Wavelength: %d nm' %Used in the sprintf for the current reference wavelength
         setWavelengthLabel
+        isScanImageConnected=false %If scanimage is connected to the laser GUI, we can access it and do awesome stuff
 
     end
 
@@ -57,6 +58,10 @@ classdef aom_view < laserControl.gui.child_view
 
             if nargin>1
                 obj.parentView=parentView; % The laser GUI
+                % Connect to ScanImage if possible
+                if isprop(obj.parentView,'hSI') && ~isempty(obj.parentView.hSI) && isa(obj.parentView.hSI,'scanimage.SI')
+                    obj.isScanImageConnected=true; %Default (above) is false
+                end
             end
 
             obj.hFig = laserControl.gui.newGenericGUIFigureWindow('laserControl_aom');
@@ -140,8 +145,15 @@ classdef aom_view < laserControl.gui.child_view
                 'FontSize', obj.fSize, ...
                 'FontWeight', 'bold', ...
                 'Tooltip', 'Enters and leaves power tweak mode', ...
+                'Enable','on',...
                 'String', 'Enter tweak', ...
                 'Callback', @obj.tweakModeButtonCallBack);
+
+            if ~obj.isScanImageConnected
+                set(obj.button_RF_powerTweakMode, ...
+                    'Enable','off',...
+                    'Tooltip','Re-start laser GUI with ScanImage already started')
+            end
 
             obj.button_insertRF_power = uicontrol(...
                 'Parent', obj.powerPanel, ...
@@ -149,6 +161,7 @@ classdef aom_view < laserControl.gui.child_view
                 'FontSize', obj.fSize, ...
                 'FontWeight', 'bold', ...
                 'String', 'Add value', ...
+                'Enable', 'off', ...
                 'Callback', @obj.insertRF_powerValueFromTableButtonCallback);
 
             obj.button_removeRF_power = uicontrol(...
@@ -434,14 +447,27 @@ classdef aom_view < laserControl.gui.child_view
 
 
         function tweakModeButtonCallBack(obj,~,~)
+            % The tweak button is disabled in the constructor unless ScanImage
+            % is connected to the laser GUI. So no further checks needed here
+            % as to this fact.
+
+            %Set ScanImage to point mode
+
             obj.inRF_powerTweakMode = ~obj.inRF_powerTweakMode;
 
             if obj.inRF_powerTweakMode
                 obj.button_insertRF_power.Enable='on';
                 obj.button_RF_powerTweakMode.String='Leave tweak';
+                if strcmpi(obj.parentView.hSI.acqState,'idle')
+                     obj.parentView.hSI.scanPointBeam
+                else
+                    fprintf('ScanImage not idle. Not entering tweak mode\n')
+                    return
+                end
             else
                 obj.button_insertRF_power.Enable='off';
                 obj.button_RF_powerTweakMode.String='Enter tweak';
+                obj.parentView.hSI.hCycleManager.abort;
             end
 
         end

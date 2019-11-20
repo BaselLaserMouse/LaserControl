@@ -64,8 +64,8 @@ classdef laser_view_si_hooked < laserControl.gui.laser_view
 
 
         function enableRegularGUIupdates(obj)
-            fprintf('Resuming regular laser GUI updates.\n')
             if ~strcmp(obj.laserViewUpdateTimer.Running,'on')
+                fprintf('Resuming regular laser GUI updates.\n')
                 start(obj.laserViewUpdateTimer)
             end
             %TODO: visual changes that GUI has stopped updating
@@ -73,8 +73,8 @@ classdef laser_view_si_hooked < laserControl.gui.laser_view
 
 
         function disableRegularGUIupdates(obj)
-            fprintf('Stopping regular laser GUI updates.\n')
             if ~strcmp(obj.laserViewUpdateTimer.Running,'off')
+                fprintf('Stopping regular laser GUI updates.\n')
                 stop(obj.laserViewUpdateTimer)
             end
             %TODO: visual changes that GUI has stopped updating
