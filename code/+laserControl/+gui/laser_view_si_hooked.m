@@ -47,7 +47,13 @@ classdef laser_view_si_hooked < laserControl.gui.laser_view
             %Returns true if a focus, loop, or grab is in progress even if the system is not
             %currently acquiring a frame. Stops the regular update timer, etc, during
             %acquisition. 
-            obj.isSIAcquiring = ~strcmp(obj.hSI.acqState,'idle');
+
+            if strcmp(obj.hSI.acqState,'idle') || strcmp(obj.hSI.acqState,'point')
+                obj.isSIAcquiring = false;
+            else
+                obj.isSIAcquiring = true;
+            end
+
             if obj.isSIAcquiring
                 obj.disableRegularGUIupdates
             else

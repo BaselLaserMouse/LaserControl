@@ -22,8 +22,8 @@ end
 % Build laser
 hLaser = buildComponent(settings.laser.type,settings.laser.COM);
 
-% Build laser GUI
-hGUI_laser=laserControl.gui.laser_view(hLaser);
+% Build laser GUI that can be linked to ScanImage
+hGUI_laser=laserControl.gui.laser_view_si_hooked(hLaser);
 
 
 % Optionally build the AOM and link to the laser
