@@ -10,12 +10,6 @@ classdef MPDSaom < laserControl.aom
 %
 % Rob Campbell - SWC 2019
 
-    properties
-        referenceWavelength=890 %We will tune the the frequency at this wavelength
-        referenceFrequency=104  %This is a default, it can be over-ridden by a saved value
-        powerTable=[890,500; 920,520] %Format: col 1 is wavelength and col 2 is raw power. Can be loaded from disk.
-    end
-
     methods
         function obj = MPDSaom(serialComms)
         % function obj = maitai(serialComms,logObject)
@@ -23,6 +17,14 @@ classdef MPDSaom < laserControl.aom
 
             % Define a file name for the settings file
             obj.settingsFname='MPDSaom_settings.mat';
+
+            % Set some values to the AOM tuning parameters in case the user
+            % has not yet created a settings file. 
+            obj.referenceWavelength=790; %We will tune the the frequency at this wavelength
+            obj.referenceFrequency=118;  %This is a default, it can be over-ridden by a saved value
+            obj.powerTable=[790,30; 920,31]; %Format: col 1 is wavelength and col 2 is power in dB. Can be loaded from disk.
+
+            obj.friendlyName='MPDS AOM';
 
             if nargin<1
                 error('MPDSaom requires one argument: you must supply the COM port as a string')
@@ -41,8 +43,12 @@ classdef MPDSaom < laserControl.aom
             end
 
 
-            %Report connection 
+            %Report Connected
             fprintf('Connected to MPDS AOM on %s\n', serialComms)
+
+            % Enable channe;
+            obj.enableChannel
+
 
 
         end %constructor
@@ -136,11 +142,11 @@ classdef MPDSaom < laserControl.aom
             end
             T=regexp(statusStr,' F=(\d+\.\d+) P=','tokens');
             frequency = str2double(T{1}{1});
+            obj.currentFrequency = frequency; % Updates observable property that can be used by GUIs
         end
 
 
         function success = setFrequency(obj, frequencyInMHz)
-
             % Round requency to two decimal places and send to driver
             frequencyInMHz = round(frequencyInMHz,2);
             cmd = sprintf('L1F%3.2f',frequencyInMHz);
@@ -157,12 +163,16 @@ classdef MPDSaom < laserControl.aom
             end
         end
 
+
         function AOMPower = readPower(obj,statusStr)
             if nargin<2
                 statusStr=[];
             end
             AOMPower = obj.readPower_dB(statusStr);
+            obj.currentRFpower_dB = AOMPower; % Updates observable property that can be used by GUIs
         end
+
+
         function success = setPower(obj,powerIn_dB)
             success = obj.setPower_dB(powerIn_dB);
         end
@@ -175,6 +185,7 @@ classdef MPDSaom < laserControl.aom
             end
             T=regexp(statusStr,' P=(\d+\.\d+) ','tokens');
             AOMPower = str2double(T{1}{1});
+            obj.currentRFpower_dB = AOMPower; % Updates observable property that can be used by GUIs
         end
 
 
@@ -339,6 +350,12 @@ classdef MPDSaom < laserControl.aom
             end
             tok=regexp(statusStr,'Blanking \w+ (\w+)','tokens');
             state = lower(tok{1}{1});
+            % Sets observable property for GUIs
+            if strcmp(state,'internal')
+                obj.currentExternalBlankingEnabled=false;
+            else
+                obj.currentExternalBlankingEnabled=true;
+            end
         end
 
 
@@ -391,7 +408,14 @@ classdef MPDSaom < laserControl.aom
                 return 
             end
             state = lower(tok{1}{1});
+            % Sets observable property for GUIs
+            if strcmp(state,'internal')
+                obj.currentExternalChannelEnabled=false;
+            else
+                obj.currentExternalChannelEnabled=true;
+            end
         end
+
 
 
 
@@ -424,10 +448,12 @@ classdef MPDSaom < laserControl.aom
             [a,b]=regexp(str,'P.*\)');
             fprintf('%s\n',str(a:b))
         end
+
     end % MPDS-specific
 
     % MPDS-specific hidden
     methods (Hidden=true)
+
         function statusStr = getStatusString(obj)
             % Get the status string. Annoying code because this command follows
             % a different standard to the rest
@@ -460,8 +486,10 @@ classdef MPDSaom < laserControl.aom
             ind = find(delta==min(delta));
             newPower = obj.powerTable(ind,2);
             fprintf('& power at %d\n', newPower);
-            obj.setPower_raw(newPower);
+            obj.setPower_dB(newPower);
         end
+
+
 
     end % hidden methods
 

@@ -18,10 +18,10 @@ function success=loadSettingsFromDisk(obj)
         successes(1)=obj.disableAOMBlanking;
     end
 
-    if strcmp(obj.readAOMBlankingState,'internal')
-        successes(2)=obj.externalAOMBlanking;
-    else
+    if strcmp(settings.blankingState,'internal')
         successes(2)=obj.internalAOMBlanking;
+    else
+        successes(2)=obj.externalAOMBlanking;
     end
 
     if settings.chanOneEnabled
@@ -30,7 +30,7 @@ function success=loadSettingsFromDisk(obj)
         successes(3)=obj.disableChannel;
     end
 
-    if strcmp(obj.readChannelState,'internal')
+    if strcmp(settings.chanOneState,'internal')
         successes(4)=obj.internalChannel;
     else
         successes(4)=obj.externalChannel;

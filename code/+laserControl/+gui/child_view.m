@@ -22,7 +22,6 @@ classdef child_view < handle
 
         function delete(obj)
             obj.model=[]; % We absolutely don't want to close down the model/component just by closing the view. 
-            obj.parentView=[]; %ditto
 
             delete(obj.hFig);
             cellfun(@delete,obj.listeners)

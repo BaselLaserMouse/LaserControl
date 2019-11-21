@@ -15,7 +15,7 @@ end
 
 
 % Return existing handle if possible
-f = findobj('Tag', tagName);
+f = findall(0,'Tag', tagName);
 if ~isempty(f)
     figure(f)
     H=[];

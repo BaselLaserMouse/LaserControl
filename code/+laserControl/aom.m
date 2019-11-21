@@ -35,7 +35,33 @@ classdef (Abstract) aom < handle
         listeners = {}
         settingsFname % Settings for the device go in a file (e.g. MAT file) named thus. This value
                       % should be defined as soon as possible in the concrete class constructor. 
+        friendlyName='aom' % Used for things like figure titles for associated GUIs
+
+        minFrequency
+        maxFrequency
+ 
+        minPower
+        maxPower
     end %close hidden properties
+
+
+
+    properties (SetObservable)
+        referenceWavelength  %We will tune the the frequency at this wavelength
+        referenceFrequency   %This is a default, it can be over-ridden by a saved value
+        powerTable           %Format: col 1 is wavelength and col 2 is power in dB. Can be loaded from disk.
+    end
+
+
+    properties (Hidden,SetObservable)
+        % GUIs can listen to these
+        currentRFpower_dB  % Current RF power at crystal 
+        currentFrequency   % Current RF frequency
+
+        %The following should be true/false not "internal"/"external"
+        currentExternalBlankingEnabled    % Whether we are currently using external blanking (gating)
+        currentExternalChannelEnabled    % Whether we are currently accepting an external signal for controlling laser power or doing it internally
+    end
 
 
     % These are GUI-related properties. The view class that comprises the GUI listens to changes in these
@@ -44,15 +70,8 @@ classdef (Abstract) aom < handle
     % property must be set to true. Failing to do this will cause the GUI to fail to update. All 
     % properties in this section should be updated in the constructor once the AOM is connected
     properties (Hidden, SetObservable, AbortSet)
-        minFrequency
-        maxFrequency
- 
-        minPower
-        maxPower
-
-
         % TODO: the following are likely really bad practice
-        isAomConnected=false % Set by isControllerConnected
+        isAomConnected=false % Set by isControllerConnected. Must be set to true when the AOM controller has been connected
         isAomReady=false % Must be updated by isReady
     end %close GUI-related properties
 

@@ -22,30 +22,29 @@ end
 % Build laser
 hLaser = buildComponent(settings.laser.type,settings.laser.COM);
 
-% Build laser GUI
-hGUI=laserControl.gui.laser_view(hLaser);
 
 
 % Optionally build the AOM and link to the laser
 if ~isempty(settings.aom.type)
     fprintf('Connecting to AOM and linking to laser\n')
-    hAOM = buildComponent(settings.aom.type,settings.aom.COM);
-    hAOM.linkToLaser(hLaser);
+    hLaser.hAOM = buildComponent(settings.aom.type,settings.aom.COM);
+    hLaser.hAOM.linkToLaser(hLaser);
 else
     hAOM=[];
 end
 
-% Assign to base workspace
-hLaserControl.hLaser = hLaser;
-hLaserControl.hGUI = hGUI;
-hLaserControl.hAOM = hAOM;
+% Attempt to link to ScanImage
+success = laserControl.scanimage.integrateLaser(hLaser);
+
+if ~success
+    % Open GUI as standalone if link to ScanImage failed
+    hLaserControl.hLaser = hLaser;
+    hLaserControl.hGUI_laser = laserControl.gui.laser_view_si_hooked(hLaser);
+end
+
 if nargout>0
     varargout{1}=hLaserControl;
 end
-
-
-
-
 
 
 
