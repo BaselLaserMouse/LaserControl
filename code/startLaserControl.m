@@ -14,20 +14,21 @@ function varargout=startLaserControl
 settings = laserControl.settings.readSettings;
 hLaser = [];
 if isempty(settings.laser.type)
+    fprintf('No laser defined in settings file\n')
     return
 end
     
 
 
 % Build laser
-hLaser = buildComponent(settings.laser.type,settings.laser.COM);
+hLaser = laserControl.settings.buildComponent(settings.laser.type,settings.laser.COM);
 
 
 
 % Optionally build the AOM and link to the laser
 if ~isempty(settings.aom.type)
     fprintf('Connecting to AOM and linking to laser\n')
-    hLaser.hAOM = buildComponent(settings.aom.type,settings.aom.COM);
+    hLaser.hAOM = laserControl.settings.buildComponent(settings.aom.type,settings.aom.COM);
     hLaser.hAOM.linkToLaser(hLaser);
 else
     hAOM=[];
@@ -45,26 +46,3 @@ end
 if nargout>0
     varargout{1}=hLaserControl;
 end
-
-
-
-
-function thisComponent = buildComponent(componentName,varargin)
-    %Build the correct object based on "componentName"
-    COMPORT = laserControl.settings.parseComPort(varargin{1});
-
-    switch componentName
-        case 'dummyLaser'
-            thisComponent = laserControl.dummyLaser;
-        case 'maitai'
-            thisComponent = laserControl.maitai(COMPORT);
-        case 'chameleon'
-            thisComponent = laserControl.chameleon(COMPORT);
-        case 'MPDSaom'
-            thisComponent = laserControl.MPDSaom(COMPORT);
-        otherwise
-            fprintf('ERROR: unknown laser component "%s" SKIPPING BUILDING\n', laserName)
-            thisComponent=[];
-            return
-    end
-
