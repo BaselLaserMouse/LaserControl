@@ -156,4 +156,5 @@ ans =
 * v0.14.00 - AOM GUI reads from model. Saves and loads settings. 
 * v0.15.00 - AOM GUI sets values in model. 
 * v0.16.00 - AOM GUI is talking to ScanImage via SI-hookable Laser GUI.
-* v0.16.50 - Link to ScanImage for laser control is working.
+* v0.16.50 - Link to ScanImage for laser control is working. Test in simulated mode. 
+* v0.17.50 - Working with real ScanImage.

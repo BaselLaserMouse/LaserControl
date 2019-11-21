@@ -34,7 +34,7 @@ else
 end
 
 % Attempt to link to ScanImage
-success = laserControl.scanimage.integrateLaserGUI(hLaser);
+success = laserControl.scanimage.integrateLaser(hLaser);
 
 if ~success
     % Open GUI as standalone if link to ScanImage failed

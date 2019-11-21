@@ -15,6 +15,7 @@ classdef laser_view < laserControl.gui.child_view
 
         buttonOnOff
         buttonShutter
+        buttonAOM
         editWavelength
         currentWavelengthText
     end
@@ -91,25 +92,25 @@ classdef laser_view < laserControl.gui.child_view
 
             % Make the status panel
             fprintf('Building GUI elements\n')
-            obj.statusPanel = laserControl.gui.newGenericGUIPanel([7.6 8.5 206.8 137.5], obj.hFig);
+            obj.statusPanel = laserControl.gui.newGenericGUIPanel([7.6 40 206.8 117.5], obj.hFig);
             indicatorsLeftPos=115;
-            obj.powerIndicator = obj.makeRectangle(obj.statusPanel,[indicatorsLeftPos,110]);
-            obj.powerText = obj.makeTextLabel(obj.statusPanel,[0 109, 110 20],'Power: OFF');
+            obj.powerIndicator = obj.makeRectangle(obj.statusPanel,[indicatorsLeftPos,90]);
+            obj.powerText = obj.makeTextLabel(obj.statusPanel,[0 89, 110 20],'Power: OFF');
             set(obj.powerText, 'HorizontalAlignment', 'Right');
 
-            obj.shutterIndicator   = obj.makeRectangle(obj.statusPanel,[indicatorsLeftPos,90]);
-            obj.shutterText = obj.makeTextLabel(obj.statusPanel,[0, 89, 110 20],'Shutter Closed');
+            obj.shutterIndicator   = obj.makeRectangle(obj.statusPanel,[indicatorsLeftPos,70]);
+            obj.shutterText = obj.makeTextLabel(obj.statusPanel,[0, 69, 110 20],'Shutter Closed');
             set(obj.shutterText, 'HorizontalAlignment', 'Right');
 
-            obj.modelockIndicator = obj.makeRectangle(obj.statusPanel,[indicatorsLeftPos,70]);
-            obj.modelockText = obj.makeTextLabel(obj.statusPanel,[0, 69, 110 20],'Modelock: NO');
+            obj.modelockIndicator = obj.makeRectangle(obj.statusPanel,[indicatorsLeftPos,50]);
+            obj.modelockText = obj.makeTextLabel(obj.statusPanel,[0, 49, 110 20],'Modelock: NO');
             set(obj.modelockText, 'HorizontalAlignment', 'Right')
 
-            obj.connectionIndicator = obj.makeRectangle(obj.statusPanel,[indicatorsLeftPos,50]);
-            obj.connectionText = obj.makeTextLabel(obj.statusPanel,[0, 49, 110 20],'Connected: NO');
+            obj.connectionIndicator = obj.makeRectangle(obj.statusPanel,[indicatorsLeftPos,30]);
+            obj.connectionText = obj.makeTextLabel(obj.statusPanel,[0, 29, 110 20],'Connected: NO');
             set(obj.connectionText, 'HorizontalAlignment', 'Right');
 
-            obj.laserPowerText = obj.makeTextLabel(obj.statusPanel,[0, 29, 130 20],'Power: 0 mW');
+            obj.laserPowerText = obj.makeTextLabel(obj.statusPanel,[0, 9, 130 20],'Power: 0 mW');
 
 
             % Buttons
@@ -128,6 +129,17 @@ classdef laser_view < laserControl.gui.child_view
                 'FontWeight', 'bold', ...
                 'String', 'Open Shutter', ...
                 'Callback', @obj.shutterButtonCallBack);
+
+            if ~isempty(obj.model.laser.hAOM)
+                obj.buttonAOM=uicontrol(...
+                    'Parent', obj.hFig, ...
+                    'Position', [5, 5, 100, 25], ...
+                    'FontSize', obj.fSize, ...
+                    'FontWeight', 'bold', ...
+                    'String', 'AOM GUI', ...
+                    'Callback', @obj.startAOM_GUI_Button_Callback);
+            end
+
 
             % - - - - - - - - -
             % Wavelength
@@ -306,6 +318,13 @@ classdef laser_view < laserControl.gui.child_view
             elseif obj.model.laser.isLaserShutterOpen==false
                 obj.model.laser.openShutter;
             end
+        end
+
+        function startAOM_GUI_Button_Callback(obj,~,~)
+            if isempty(obj.model.laser.hAOM)
+                return
+            end
+            laserControl.gui.aom_view(obj.model.laser.hAOM,obj);
         end
 
         function updateShutterElements(obj,~,~)

@@ -43,8 +43,12 @@ classdef MPDSaom < laserControl.aom
             end
 
 
-            %Report Connectedion 
+            %Report Connected
             fprintf('Connected to MPDS AOM on %s\n', serialComms)
+
+            % Enable channe;
+            obj.enableChannel
+
 
 
         end %constructor

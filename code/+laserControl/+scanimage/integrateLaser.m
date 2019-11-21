@@ -13,11 +13,7 @@ if ~isa(hLaser,'laserControl.laser')
     fprintf('laserControl.scanimage.integrateLaser requires input of class laserControl.laser\n');
 end
 
-if nargin<2
-    hAOM=[];
-end
-
-main_window = findall(groot, 'Type', 'Figure', 'Name', 'MAIN CONTROLS');
+main_window = findall(0, 'Type', 'Figure', 'Name', 'MAIN CONTROLS');
 
 if isempty(main_window)
     fprintf('Can not find ScanImage\n')
@@ -34,7 +30,7 @@ if isempty(mitem)
     mitem.Tag='laserControl_SI';
 end
 
-mitem.UserData=struct('hLaser',hLaser,'hAOM',hAOM);
+mitem.UserData=struct('hLaser',hLaser);
 mitem.MenuSelectedFcn = @laserControl.scanimage.openLaserGUI;
 
 success=true;

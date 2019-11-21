@@ -36,7 +36,7 @@ classdef aom_view < laserControl.gui.child_view
         currentRefWavelengthString='Current Ref Wavelength: %d nm' %Used in the sprintf for the current reference wavelength
         setWavelengthLabel
         isScanImageConnected=false %If scanimage is connected to the laser GUI, we can access it and do awesome stuff
-        previousSIpower %Used to return ScanImage to previous power setting upon leaving tweak mode
+        lastBeamPower %To return power to original value
     end
 
 
@@ -58,11 +58,16 @@ classdef aom_view < laserControl.gui.child_view
 
             if nargin>1
                 obj.parentView=parentView; % The laser GUI
-                % Connect to ScanImage if possible
-                if isprop(obj.parentView,'hSI') && ~isempty(obj.parentView.hSI) && isa(obj.parentView.hSI,'scanimage.SI')
-                    obj.isScanImageConnected=true; %Default (above) is false
-                end
+            else
+                fprintf('No laser GUI connected. Can not proceed.\n')
+                return
             end
+
+            % Connect to ScanImage if possible
+            if isprop(obj.parentView,'hSI') && ~isempty(obj.parentView.hSI) && isa(obj.parentView.hSI,'scanimage.SI')
+                obj.isScanImageConnected=true; %Default (above) is false
+            end
+
 
             obj.hFig = laserControl.gui.newGenericGUIFigureWindow('laserControl_aom');
             % Closing the figure closes the laser view object
@@ -89,7 +94,7 @@ classdef aom_view < laserControl.gui.child_view
             end
 
 
-            %Place next to laser GUI
+            %Place next to laser GUI            
             iptwindowalign(obj.parentView.hFig, 'right', obj.hFig, 'left');
             iptwindowalign(obj.parentView.hFig, 'top', obj.hFig, 'top');
 
@@ -437,7 +442,7 @@ classdef aom_view < laserControl.gui.child_view
 
 
         function insertRF_powerValueFromTableButtonCallback(obj,~,~)
-            obj.model.aom.removeRF_powerFromTable;
+            obj.model.aom.insertCurrentRF_powerIntoTable;
         end
 
 
@@ -456,12 +461,11 @@ classdef aom_view < laserControl.gui.child_view
             obj.inRF_powerTweakMode = ~obj.inRF_powerTweakMode;
 
             if obj.inRF_powerTweakMode
-                %Point the beam, open shutter, set power to max (direct mode)
                 obj.button_insertRF_power.Enable='on';
                 obj.button_RF_powerTweakMode.String='Leave tweak';
                 if strcmpi(obj.parentView.hSI.acqState,'idle')
                     obj.parentView.hSI.scanPointBeam
-                    obj.previousSIpower=obj.parentView.hSI.hBeams.powers;
+                    obj.lastBeamPower=obj.parentView.hSI.hBeams.powers;
                     obj.parentView.hSI.hBeams.powers=100;
                     obj.parentView.hSI.hBeams.directMode=true;
                 else
@@ -469,12 +473,11 @@ classdef aom_view < laserControl.gui.child_view
                     return
                 end
             else
-                %Leave point mode and return power to previous level
                 obj.button_insertRF_power.Enable='off';
                 obj.button_RF_powerTweakMode.String='Enter tweak';
-                obj.parentView.hSI.hBeams.directMode=false;
-                obj.parentView.hSI.hBeams.powers=obj.previousSIpower;
                 obj.parentView.hSI.hCycleManager.abort;
+                obj.parentView.hSI.hBeams.powers=obj.lastBeamPower;
+                obj.parentView.hSI.hBeams.directMode=false;
             end
 
         end
