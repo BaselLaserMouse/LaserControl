@@ -410,9 +410,9 @@ classdef MPDSaom < laserControl.aom
             state = lower(tok{1}{1});
             % Sets observable property for GUIs
             if strcmp(state,'internal')
-                obj.currentExternalChannel=false;
+                obj.currentExternalChannelEnabled=false;
             else
-                obj.currentExternalChannel=true;
+                obj.currentExternalChannelEnabled=true;
             end
         end
 

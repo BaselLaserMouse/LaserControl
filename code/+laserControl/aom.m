@@ -60,7 +60,7 @@ classdef (Abstract) aom < handle
 
         %The following should be true/false not "internal"/"external"
         currentExternalBlankingEnabled    % Whether we are currently using external blanking (gating)
-        currentExternalChannel    % Whether we are currently accepting an external signal for controlling laser power or doing it internally
+        currentExternalChannelEnabled    % Whether we are currently accepting an external signal for controlling laser power or doing it internally
     end
 
 

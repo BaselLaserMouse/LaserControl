@@ -234,7 +234,7 @@ classdef aom_view < laserControl.gui.child_view
                 'String', 'External voltage control',...
                 'BackgroundColor', obj.hFig.Color, ...
                 'ForegroundColor', 'w', ...
-                'Value', obj.model.aom.currentExternalChannel, ...
+                'Value', obj.model.aom.currentExternalChannelEnabled, ...
                 'Callback', @obj.setExternalVoltageCallback, ....
                 'Position', [8,115,200,20]);
 
@@ -252,7 +252,8 @@ classdef aom_view < laserControl.gui.child_view
             obj.listeners{3}=addlistener(obj.model.aom, 'referenceWavelength', 'PostSet', @obj.updateRefWavelengthTextCallback);            
             obj.listeners{4}=addlistener(obj.model.aom, 'currentFrequency', 'PostSet', @obj.updateFreqTextCallback);            
             obj.listeners{5}=addlistener(obj.model.aom, 'currentRFpower_dB', 'PostSet', @obj.updateRFpowerTextCallback);
-
+            obj.listeners{5}=addlistener(obj.model.aom, 'currentExternalBlankingEnabled', 'PostSet', @obj.updateExternalBlankingCheckboxCallback);
+            obj.listeners{5}=addlistener(obj.model.aom, 'currentExternalChannelEnabled', 'PostSet', @obj.updateExternalChannelCheckboxCallback);
 
             %Set the GUI elements to reflect the current state of the laser
             fprintf('Finalising AOM GUI state\n')
@@ -332,12 +333,12 @@ classdef aom_view < laserControl.gui.child_view
 
         %The following methods are used to load and save settings
         function loadSettingsButtonCallBack(obj,~,~)
-            obj.model.aom.loadSettingsFromDisk
+            obj.model.aom.loadSettingsFromDisk;
         end
 
 
         function saveSettingsButtonCallBack(obj,~,~)
-            obj.model.aom.writeCurrentStateToSettingsFile
+            obj.model.aom.writeCurrentStateToSettingsFile;
         end
 
 
@@ -394,6 +395,16 @@ classdef aom_view < laserControl.gui.child_view
             set(obj.currentPowerText,'String', ...
                 sprintf(obj.currentPowerString,obj.model.aom.currentRFpower_dB))
             set(obj.editRF_power,'String',obj.model.aom.currentRFpower_dB)
+        end
+
+
+        function updateExternalBlankingCheckboxCallback(obj,~,~)
+            obj.checkBox_blankingExternal.Value=obj.model.aom.currentExternalBlankingEnabled;
+        end
+
+
+        function updateExternalChannelCheckboxCallback(obj,~,~)
+            obj.checkBox_externalVoltageControl.Value=obj.model.aom.currentExternalChannelEnabled;
         end
 
 
