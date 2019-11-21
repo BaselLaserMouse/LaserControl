@@ -21,7 +21,7 @@ Add the `code` directory to your MATLAB path.
 
 Basic low-level control without a GUI
 ```
->> MT = laserControl.maitai('COM1'); %substitute for your COM port and laser
+>> MT = laserControl.maitai('COM1'); %substitute your COM port and laser
 >> MT.turnOn
 >> MT.openShutter
 ```
@@ -43,7 +43,7 @@ That loads a sub-class of `laser_view` that is aware of ScanImage.
 To also control an AOM in tandem with the laser do:
 ```
 >> hLaser = laserControl.maitai('COM1');
->> hLaser.hAOM = laserControl.MPDSaom('COM3'); %substitute for your COM port
+>> hLaser.hAOM = laserControl.MPDSaom('COM3'); %substitute your COM port
 >> hLaser.hAOM.linkToLaser(hLaser);
 >> hGUI = laserControl.gui.laser_view_si_hooked(hLaser);
 ```
@@ -197,3 +197,4 @@ ans =
 * v0.16.50 - Link to ScanImage for laser control is working. Test in simulated mode. 
 * v0.17.50 - Working with real ScanImage.
 * v0.18.00 - Tested and fixed bugs. All works as expected.
+* v0.19.00 - Start script for AOM GUI on its own.
