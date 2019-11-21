@@ -197,3 +197,4 @@ ans =
 * v0.16.50 - Link to ScanImage for laser control is working. Test in simulated mode. 
 * v0.17.50 - Working with real ScanImage.
 * v0.18.00 - Tested and fixed bugs. All works as expected.
+* v0.19.00 - Start script for AOM GUI on its own.
