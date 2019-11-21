@@ -35,8 +35,8 @@ classdef aom_view < laserControl.gui.child_view
         currentPowerString='Current RF Power: %2.2f dB' %Used in the sprintf for the current power
         currentRefWavelengthString='Current Ref Wavelength: %d nm' %Used in the sprintf for the current reference wavelength
         setWavelengthLabel
-        isScanImageConnected=false %If scanimage is connected to the laser GUI, we can access it and do awesome stuff
         lastBeamPower %To return power to original value
+        hSI %reference to ScanImage
     end
 
 
@@ -50,7 +50,7 @@ classdef aom_view < laserControl.gui.child_view
             obj = obj@laserControl.gui.child_view;
 
             if nargin>0
-                obj.model.aom = hAOM;
+                obj.model.hAOM = hAOM;
             else
                 fprintf('Can''t build aom_view: please supply an AOM object as an input argument\n');
                 return
@@ -58,45 +58,41 @@ classdef aom_view < laserControl.gui.child_view
 
             if nargin>1
                 obj.parentView=parentView; % The laser GUI
+                obj.listeners{1}=addlistener(parentView.model.laser, 'currentWavelength', 'PostSet', @obj.updateLaserWavelengthRelatedElements);
             else
-                fprintf('No laser GUI connected. Can not proceed.\n')
-                return
+                fprintf('No laser GUI connected. Assuming AOM is connected to a non-tunable laser.\n')
             end
 
-            % Connect to ScanImage if possible
-            if isprop(obj.parentView,'hSI') && ~isempty(obj.parentView.hSI) && isa(obj.parentView.hSI,'scanimage.SI')
-                obj.isScanImageConnected=true; %Default (above) is false
-            end
+            %Connect to ScanImage if possible
+            obj.connectScanImage %obj.hSI remains empty if this fails
+
 
 
             obj.hFig = laserControl.gui.newGenericGUIFigureWindow('laserControl_aom');
             % Closing the figure closes the laser view object
             set(obj.hFig,'CloseRequestFcn', @obj.closeComponentView)
 
-            if ~obj.model.aom.isAomConnected
+            if ~obj.model.hAOM.isAomConnected
                 fprintf('\nAOM NOT CONNECTED\n')
                 return
             end
 
             %Read current settings to ensure the observable values are populated
-            obj.model.aom.readFrequency;
-            obj.model.aom.readPower_dB;
-            obj.model.aom.readAOMBlankingState;
-            obj.model.aom.readChannelState;
+            obj.model.hAOM.readFrequency;
+            obj.model.hAOM.readPower_dB;
+            obj.model.hAOM.readAOMBlankingState;
+            obj.model.hAOM.readChannelState;
 
             %Resize the figure window
             pos=get(obj.hFig, 'Position');
             pos(3:4)=[220,300]; %Set the window size
-            if isempty(obj.model.aom.friendlyName)
+            if isempty(obj.model.hAOM.friendlyName)
                 set(obj.hFig, 'Position',pos, 'Name', 'AOM Control')
             else
-                set(obj.hFig, 'Position',pos, 'Name', obj.model.aom.friendlyName)
+                set(obj.hFig, 'Position',pos, 'Name', obj.model.hAOM.friendlyName)
             end
 
 
-            %Place next to laser GUI            
-            iptwindowalign(obj.parentView.hFig, 'right', obj.hFig, 'left');
-            iptwindowalign(obj.parentView.hFig, 'top', obj.hFig, 'top');
 
             % Make the status panel
             fprintf('Building AOM GUI elements\n')
@@ -111,7 +107,7 @@ classdef aom_view < laserControl.gui.child_view
                 'Style','edit', ...
                 'Position', [5, 107, 75, 20], ...
                 'FontSize', obj.fSize, ...
-                'String', obj.model.aom.currentFrequency, ...
+                'String', obj.model.hAOM.currentFrequency, ...
                 'Parent', obj.freqPanel, ...
                 'Callback', @obj.setFreqEditPanel);
 
@@ -123,6 +119,9 @@ classdef aom_view < laserControl.gui.child_view
                 'String', '<html>Tune laser to<br />reference &lambda</html>', ...
                 'Tooltip', 'Tune laser to reference frequency to enable reference frequency updating', ...
                 'Callback', @obj.tuneLaserToRefWavelengthButtonCallback);
+            if isempty(obj.parentView)
+                obj.button_tuneLaserToReferenceWavelength.Enable='off';
+            end
 
             obj.button_updateReferenceFreq = uicontrol(...
                 'Parent', obj.freqPanel, ...
@@ -140,7 +139,7 @@ classdef aom_view < laserControl.gui.child_view
                 'Style','edit', ...
                 'Position', [5, 107, 75, 20], ...
                 'FontSize', obj.fSize, ...
-                'String', obj.model.aom.currentRFpower_dB, ...
+                'String', obj.model.hAOM.currentRFpower_dB, ...
                 'Parent', obj.powerPanel, ...
                 'Callback', @obj.setPowerEditPanel);
 
@@ -153,12 +152,10 @@ classdef aom_view < laserControl.gui.child_view
                 'Enable','on',...
                 'String', 'Enter tweak', ...
                 'Callback', @obj.tweakModeButtonCallBack);
-
-            if ~obj.isScanImageConnected
-                set(obj.button_RF_powerTweakMode, ...
-                    'Enable','off',...
-                    'Tooltip','Re-start laser GUI with ScanImage already started')
+            if isempty(obj.hSI)
+                obj.button_RF_powerTweakMode.Enable='off';
             end
+
 
             obj.button_insertRF_power = uicontrol(...
                 'Parent', obj.powerPanel, ...
@@ -166,7 +163,7 @@ classdef aom_view < laserControl.gui.child_view
                 'FontSize', obj.fSize, ...
                 'FontWeight', 'bold', ...
                 'String', 'Add value', ...
-                'Enable', 'off', ...
+                'Enable', 'on', ...
                 'Callback', @obj.insertRF_powerValueFromTableButtonCallback);
 
             obj.button_removeRF_power = uicontrol(...
@@ -222,7 +219,7 @@ classdef aom_view < laserControl.gui.child_view
                 'FontWeight', 'bold', ...
                 'BackgroundColor', obj.hFig.Color, ...
                 'ForegroundColor', 'w', ...
-                'Value', obj.model.aom.currentExternalBlankingEnabled, ...
+                'Value', obj.model.hAOM.currentExternalBlankingEnabled, ...
                 'Callback', @obj.setExternalBlankingCallback, ....
                 'Position', [8,98,200,20]);
 
@@ -234,40 +231,40 @@ classdef aom_view < laserControl.gui.child_view
                 'String', 'External voltage control',...
                 'BackgroundColor', obj.hFig.Color, ...
                 'ForegroundColor', 'w', ...
-                'Value', obj.model.aom.currentExternalChannelEnabled, ...
+                'Value', obj.model.hAOM.currentExternalChannelEnabled, ...
                 'Callback', @obj.setExternalVoltageCallback, ....
                 'Position', [8,115,200,20]);
 
 
             %Text labels
-            obj.currentRefWavelength = obj.makeTextLabel(obj.hFig,[4, 50, 210, 20],sprintf(obj.currentRefWavelengthString,obj.model.aom.referenceWavelength));
-            obj.currentFrequencyText = obj.makeTextLabel(obj.hFig,[4, 65, 210, 20],sprintf(obj.currentFrequencyString,obj.model.aom.readFrequency));
-            obj.currentPowerText = obj.makeTextLabel(obj.hFig,[4, 80, 210, 20],sprintf(obj.currentPowerString,obj.model.aom.readPower_dB));
+            obj.currentRefWavelength = obj.makeTextLabel(obj.hFig,[4, 50, 210, 20],sprintf(obj.currentRefWavelengthString,obj.model.hAOM.referenceWavelength));
+            obj.currentFrequencyText = obj.makeTextLabel(obj.hFig,[4, 65, 210, 20],sprintf(obj.currentFrequencyString,obj.model.hAOM.readFrequency));
+            obj.currentPowerText = obj.makeTextLabel(obj.hFig,[4, 80, 210, 20],sprintf(obj.currentPowerString,obj.model.hAOM.readPower_dB));
 
 
-            %Add some listeners to monitor properties on the laser and AOM components
+            %Add some listeners to monitor properties on the AOM
             fprintf('Setting up AOM GUI listeners\n')
-            obj.listeners{1}=addlistener(obj.parentView.model.laser, 'currentWavelength', 'PostSet', @obj.updateLaserWavelengthRelatedElements);
-            obj.listeners{2}=addlistener(obj.model.aom, 'isAomConnected', 'PostSet', @obj.updateAOMConnectedElements);
-            obj.listeners{3}=addlistener(obj.model.aom, 'referenceWavelength', 'PostSet', @obj.updateRefWavelengthTextCallback);            
-            obj.listeners{4}=addlistener(obj.model.aom, 'currentFrequency', 'PostSet', @obj.updateFreqTextCallback);            
-            obj.listeners{5}=addlistener(obj.model.aom, 'currentRFpower_dB', 'PostSet', @obj.updateRFpowerTextCallback);
-            obj.listeners{5}=addlistener(obj.model.aom, 'currentExternalBlankingEnabled', 'PostSet', @obj.updateExternalBlankingCheckboxCallback);
-            obj.listeners{5}=addlistener(obj.model.aom, 'currentExternalChannelEnabled', 'PostSet', @obj.updateExternalChannelCheckboxCallback);
-
-            %Set the GUI elements to reflect the current state of the laser
-            fprintf('Finalising AOM GUI state\n')
-            obj.updateGUI;
+            obj.listeners{2}=addlistener(obj.model.hAOM, 'isAomConnected', 'PostSet', @obj.updateAOMConnectedElements);
+            obj.listeners{3}=addlistener(obj.model.hAOM, 'referenceWavelength', 'PostSet', @obj.updateRefWavelengthTextCallback);            
+            obj.listeners{4}=addlistener(obj.model.hAOM, 'currentFrequency', 'PostSet', @obj.updateFreqTextCallback);            
+            obj.listeners{5}=addlistener(obj.model.hAOM, 'currentRFpower_dB', 'PostSet', @obj.updateRFpowerTextCallback);
+            obj.listeners{5}=addlistener(obj.model.hAOM, 'currentExternalBlankingEnabled', 'PostSet', @obj.updateExternalBlankingCheckboxCallback);
+            obj.listeners{5}=addlistener(obj.model.hAOM, 'currentExternalChannelEnabled', 'PostSet', @obj.updateExternalChannelCheckboxCallback);
 
 
+            if ~isempty(parentView)
+                %Place next to laser GUI            
+                iptwindowalign(parentView.hFig, 'right', obj.hFig, 'left');
+                iptwindowalign(parentView.hFig, 'top', obj.hFig, 'top');
+            end
         end %constructor
 
         function delete(obj)
-            %Flush the buffer on the laser (just in case)
-            if isa(obj.model.aom.hC,'serial')
-                flushinput(obj.model.aom.hC)
+            %Flush the buffer on the AOM (just in case)
+            if isa(obj.model.hAOM.hC,'serial')
+                flushinput(obj.model.hAOM.hC)
             end
-
+            obj.hSI=[];
             delete@laserControl.gui.child_view(obj);
         end
 
@@ -281,7 +278,7 @@ classdef aom_view < laserControl.gui.child_view
                 fprintf('Not a valid wavelength value\n');
                 return
             end
-            obj.model.aom.setFrequency(newValue);
+            obj.model.hAOM.setFrequency(newValue);
         end
 
 
@@ -298,7 +295,7 @@ classdef aom_view < laserControl.gui.child_view
             end
 
             %Will trigger setWavelengthEditPanelToNewTargetWaveLength
-            obj.model.aom.setPower_dB(newValue);
+            obj.model.hAOM.setPower_dB(newValue);
 
         end
 
@@ -321,11 +318,11 @@ classdef aom_view < laserControl.gui.child_view
         %This function restarts the timer and updates the GUI until the wavelength has settled
         %see also: obj.setReadWavelengthTextPanel
         function updatecurrentFrequency(obj)
-            if ~obj.model.aom.isControllerConnected
+            if ~obj.model.hAOM.isControllerConnected
                 return
             end
 
-            W=obj.model.aom.readFrequency; %updates obj.model.aom.currentFrequency which is what triggers this timer callback
+            W=obj.model.hAOM.readFrequency; %updates obj.model.hAOM.currentFrequency which is what triggers this timer callback
             set(obj.currentFrequencyText,'String',sprintf(obj.currentFrequencyString,round(W)))
         end
 
@@ -333,85 +330,93 @@ classdef aom_view < laserControl.gui.child_view
 
         %The following methods are used to load and save settings
         function loadSettingsButtonCallBack(obj,~,~)
-            obj.model.aom.loadSettingsFromDisk;
+            obj.model.hAOM.loadSettingsFromDisk;
         end
 
 
         function saveSettingsButtonCallBack(obj,~,~)
-            obj.model.aom.writeCurrentStateToSettingsFile;
+            obj.model.hAOM.writeCurrentStateToSettingsFile;
         end
 
 
         function setExternalBlankingCallback(obj,~,~)
             if obj.checkBox_blankingExternal.Value == true
-                obj.model.aom.externalAOMBlanking;
+                obj.model.hAOM.externalAOMBlanking;
             else
-                obj.model.aom.internalAOMBlanking;
+                obj.model.hAOM.internalAOMBlanking;
             end
         end
 
 
         function setExternalVoltageCallback(obj,~,~)
             if obj.checkBox_externalVoltageControl.Value == true
-                obj.model.aom.externalChannel;
+                obj.model.hAOM.externalChannel;
             else
-                obj.model.aom.internalChannel;
+                obj.model.hAOM.internalChannel;
             end
         end
 
 
         function updateAOMConnectedElements(obj,~,~)
-            if obj.model.aom.isAomConnected==true
+            if obj.model.hAOM.isAomConnected==true
                 set(obj.connectionText, 'String', 'AOM Connected: YES')
-            elseif obj.model.aom.isAomConnected==false
+            elseif obj.model.hAOM.isAomConnected==false
                 set(obj.connectionText, 'String', 'AOM Connected: NO')
             end
         end %updateAOMConnectedElements
 
 
         function updateRefWavelengthTextCallback(obj,~,~)
-            if ~obj.model.aom.isControllerConnected
+            if ~obj.model.hAOM.isControllerConnected
                 return
             end
             set(obj.currentRefWavelength,'String', ...
-                sprintf(obj.currentRefWavelengthString,obj.model.aom.referenceWavelength))
+                sprintf(obj.currentRefWavelengthString,obj.model.hAOM.referenceWavelength))
         end
 
 
         function updateFreqTextCallback(obj,~,~)
-            if ~obj.model.aom.isControllerConnected
+            if ~obj.model.hAOM.isControllerConnected
                 return
             end
             set(obj.currentFrequencyText,'String', ...
-                sprintf(obj.currentFrequencyString,obj.model.aom.currentFrequency))
-            set(obj.editFreq,'String',obj.model.aom.currentFrequency)
+                sprintf(obj.currentFrequencyString,obj.model.hAOM.currentFrequency))
+            set(obj.editFreq,'String',obj.model.hAOM.currentFrequency)
         end
 
 
         function updateRFpowerTextCallback(obj,~,~)
-            if ~obj.model.aom.isControllerConnected
+            if ~obj.model.hAOM.isControllerConnected
                 return
             end
             set(obj.currentPowerText,'String', ...
-                sprintf(obj.currentPowerString,obj.model.aom.currentRFpower_dB))
-            set(obj.editRF_power,'String',obj.model.aom.currentRFpower_dB)
+                sprintf(obj.currentPowerString,obj.model.hAOM.currentRFpower_dB))
+            set(obj.editRF_power,'String',obj.model.hAOM.currentRFpower_dB)
         end
 
 
         function updateExternalBlankingCheckboxCallback(obj,~,~)
-            obj.checkBox_blankingExternal.Value=obj.model.aom.currentExternalBlankingEnabled;
+            obj.checkBox_blankingExternal.Value=obj.model.hAOM.currentExternalBlankingEnabled;
         end
 
 
         function updateExternalChannelCheckboxCallback(obj,~,~)
-            obj.checkBox_externalVoltageControl.Value=obj.model.aom.currentExternalChannelEnabled;
+            obj.checkBox_externalVoltageControl.Value=obj.model.hAOM.currentExternalChannelEnabled;
         end
 
 
         function updateLaserWavelengthRelatedElements(obj,~,~)
+            if isempty(obj.parentView)
+                % If no laser is connected
+                obj.button_updateReferenceFreq.Enable='on';
+                obj.button_removeRF_power.Enable='on';
+                obj.button_insertRF_power.Enable='on';
+                return
+            end
+
             cL = obj.parentView.model.laser.currentWavelength;
-            rL = obj.model.aom.referenceWavelength;
-            pT = obj.model.aom.powerTable;
+            rL = obj.model.hAOM.referenceWavelength;
+            pT = obj.model.hAOM.powerTable;
             if isempty(cL)
                 return
             end
@@ -436,29 +441,29 @@ classdef aom_view < laserControl.gui.child_view
 
 
         function updateRefWavelengthButtonCallback(obj,~,~)
-            obj.model.aom.referenceFrequency = obj.model.aom.readFrequency;
+            obj.model.hAOM.referenceFrequency = obj.model.hAOM.readFrequency;
         end
 
 
         function tuneLaserToRefWavelengthButtonCallback(obj,~,~)
-            fprintf('Tuning laser to %d nm\n',obj.model.aom.referenceWavelength)
-            obj.parentView.model.laser.setWavelength(obj.model.aom.referenceWavelength)
+            fprintf('Tuning laser to %d nm\n',obj.model.hAOM.referenceWavelength)
+            obj.parentView.model.laser.setWavelength(obj.model.hAOM.referenceWavelength)
         end
 
 
         function showPowerFigButtonCallback(obj,~,~)
-            obj.model.aom.makePowerWavelengthFig
+            obj.model.hAOM.makePowerWavelengthFig
         end
 
 
 
         function insertRF_powerValueFromTableButtonCallback(obj,~,~)
-            obj.model.aom.insertCurrentRF_powerIntoTable;
+            obj.model.hAOM.insertCurrentRF_powerIntoTable;
         end
 
 
         function removeRF_powerValueFromTableButtonCallback(obj,~,~)
-            obj.model.aom.removeRF_powerFromTable;
+            obj.model.hAOM.removeRF_powerFromTable;
         end
 
 
@@ -467,18 +472,20 @@ classdef aom_view < laserControl.gui.child_view
             % is connected to the laser GUI. So no further checks needed here
             % as to this fact.
 
+            if isempty(obj.hSI)
+                return
+            end
             %Set ScanImage to point mode
-
             obj.inRF_powerTweakMode = ~obj.inRF_powerTweakMode;
 
             if obj.inRF_powerTweakMode
                 obj.button_insertRF_power.Enable='on';
                 obj.button_RF_powerTweakMode.String='Leave tweak';
-                if strcmpi(obj.parentView.hSI.acqState,'idle')
-                    obj.parentView.hSI.scanPointBeam
-                    obj.lastBeamPower=obj.parentView.hSI.hBeams.powers;
-                    obj.parentView.hSI.hBeams.powers=100;
-                    obj.parentView.hSI.hBeams.directMode=true;
+                if strcmpi(obj.hSI.acqState,'idle')
+                    obj.hSI.scanPointBeam
+                    obj.lastBeamPower=obj.hSI.hBeams.powers;
+                    obj.hSI.hBeams.powers=100;
+                    obj.hSI.hBeams.directMode=true;
                 else
                     fprintf('ScanImage not idle. Not entering tweak mode\n')
                     return
@@ -486,26 +493,24 @@ classdef aom_view < laserControl.gui.child_view
             else
                 obj.button_insertRF_power.Enable='off';
                 obj.button_RF_powerTweakMode.String='Enter tweak';
-                obj.parentView.hSI.hCycleManager.abort;
-                obj.parentView.hSI.hBeams.powers=obj.lastBeamPower;
-                obj.parentView.hSI.hBeams.directMode=false;
+                obj.hSI.hCycleManager.abort;
+                obj.hSI.hBeams.powers=obj.lastBeamPower;
+                obj.hSI.hBeams.directMode=false;
             end
 
         end
 
-        function updatePowerText(obj)
-            if ~obj.model.aom.isControllerConnected
-                %TODO: make a check connection method and bring up a warning box
+        function connectScanImage(obj)
+            % Add a reference to the hSI ScanImage object in obj.hSI
+            W = evalin('base','whos');
+            SIexists = ismember('hSI',{W.name});
+            if ~SIexists
+                fprintf('Can not find ScanImage object in base workspace\n');
                 return
             end
 
-        end
-
-        function updateGUI(obj,~,~)
-
-        end %updateGUI
-
-
+            obj.hSI = evalin('base','hSI'); % get hSI from the base workspace
+        end %connectScanImage
 
     end %end hidden methods
 
