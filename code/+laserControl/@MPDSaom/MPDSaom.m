@@ -44,10 +44,10 @@ classdef MPDSaom < laserControl.aom
 
 
             %Report Connected
-            fprintf('Connected to MPDS AOM on %s\n', serialComms)
+            fprintf('Connected to MPDS AOM on %s\n', serialComms);
 
             % Enable channe;
-            obj.enableChannel
+            obj.enableChannel;
 
 
 
@@ -205,17 +205,6 @@ classdef MPDSaom < laserControl.aom
                 success=true;
             end
         end
-
-
-        function AOMPower = readPower_raw(obj,statusStr)
-            %Return AOM frequency power in raw value from register (0 to 1023)
-            if nargin<2
-                statusStr = obj.getStatusString
-            end
-            T=regexp(statusStr,' P=(\d+\.\d+) ','tokens');
-            AOMPower = str2double(T{1}{1});
-        end
-
 
         function success = setPower_raw(obj, powerIn_raw)
             % Round requency to two decimal places and send to driver

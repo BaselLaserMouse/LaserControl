@@ -18,6 +18,10 @@ main_window = findall(0, 'Type', 'Figure', 'Name', 'MAIN CONTROLS');
 if isempty(main_window)
     fprintf('Can not find ScanImage\n')
     success=false;
+
+    if nargout>0
+        varargout{1}=success;
+    end
     return
 end
 
@@ -36,5 +40,5 @@ mitem.MenuSelectedFcn = @laserControl.scanimage.openLaserGUI;
 success=true;
 
 if nargout>0
-	varargout{1}=success;
+    varargout{1}=success;
 end

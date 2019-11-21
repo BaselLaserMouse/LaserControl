@@ -16,6 +16,7 @@ frequency and RF power as wavelength alters.
 ## Installation
 Add the `code` directory to your MATLAB path. 
 
+
 ## Example
 
 Basic low-level control without a GUI
@@ -53,6 +54,7 @@ First run `laserControl.settings.readSettings` and edit the settings file in the
 Then you run `startLaserControl`.
 If ScanImage is already started then the laser GUI can be started from the View menu in ScanImage.
 Otherwise the GUI appears automatically. 
+To start the AOM GUI alone run `startAOMControl`. 
 
 
 For that to work you will need to edit the settings file created in the SETTINGS directory the first time you run the above command. Simply fill in the laser name and the COM port index to which the laser is connected. 
