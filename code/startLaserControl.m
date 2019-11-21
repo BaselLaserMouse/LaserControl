@@ -36,7 +36,7 @@ end
 % Attempt to link to ScanImage
 success = laserControl.scanimage.integrateLaser(hLaser);
 
-if ~success
+if success == false
     % Open GUI as standalone if link to ScanImage failed
     hLaserControl.hLaser = hLaser;
     hLaserControl.hGUI_laser = laserControl.gui.laser_view_si_hooked(hLaser);
