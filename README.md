@@ -158,3 +158,4 @@ ans =
 * v0.16.00 - AOM GUI is talking to ScanImage via SI-hookable Laser GUI.
 * v0.16.50 - Link to ScanImage for laser control is working. Test in simulated mode. 
 * v0.17.50 - Working with real ScanImage.
+* v0.18.00 - Tested and fixed bugs. All works as expected.
