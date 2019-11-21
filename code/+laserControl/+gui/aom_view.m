@@ -252,7 +252,7 @@ classdef aom_view < laserControl.gui.child_view
             obj.listeners{5}=addlistener(obj.model.hAOM, 'currentExternalChannelEnabled', 'PostSet', @obj.updateExternalChannelCheckboxCallback);
 
 
-            if ~isempty(parentView)
+            if ~isempty(obj.parentView)
                 %Place next to laser GUI            
                 iptwindowalign(parentView.hFig, 'right', obj.hFig, 'left');
                 iptwindowalign(parentView.hFig, 'top', obj.hFig, 'top');
