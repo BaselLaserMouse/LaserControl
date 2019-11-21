@@ -22,7 +22,7 @@ classdef MPDSaom < laserControl.aom
             % has not yet created a settings file. 
             obj.referenceWavelength=790; %We will tune the the frequency at this wavelength
             obj.referenceFrequency=118;  %This is a default, it can be over-ridden by a saved value
-            obj.powerTable=[750,20; 920,20]; %Format: col 1 is wavelength and col 2 is power in dB. Can be loaded from disk.
+            obj.powerTable=[790,30; 920,31]; %Format: col 1 is wavelength and col 2 is power in dB. Can be loaded from disk.
 
             obj.friendlyName='MPDS AOM';
 
