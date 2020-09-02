@@ -15,7 +15,7 @@ frequency and RF power as wavelength alters.
 
 ## Installation
 * Add the `code` directory to your MATLAB path. 
-* In MATLAB run `laserControl.settings.readSettings` then go to the settings file in the path reported to screen and fill in the missing settings.
+* In MATLAB run `laserControl.settings.readSettings` then go to the settings file in the path reported to screen and fill in the missing settings. Note that if you plan to control an AOM but are not controlling the laser from the same PC, you should select the `dummyLaser` option and set the COM port to any integer. 
 
 ## Example
 Note that to run all the following examples, the manufacturer's control software must first be closed. 
