@@ -1,4 +1,4 @@
-classdef maitai < laserControl.laser & loghandler
+classdef maitai < laserControl.laser
 %%  maitai - control class for maitai lasers
 %
 %
@@ -18,17 +18,14 @@ classdef maitai < laserControl.laser & loghandler
 
         % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         %constructor
-        function obj = maitai(serialComms,logObject)
-        % function obj = maitai(serialComms,logObject)
+        function obj = maitai(serialComms)
+        % function obj = maitai(serialComms)
         % serialComms is a string indicating the serial port we should connect to
 
             if nargin<1
                 error('maitai requires at least one input argument: you must supply the laser COM port as a string')
             end
-            %Attach log object if it is supplied
-            if nargin>1
-                obj.attachLogObject(logObject);
-            end
+
 
             obj.maxWavelength=1100;
             obj.minWavelength=700;
@@ -391,7 +388,7 @@ classdef maitai < laserControl.laser & loghandler
             if isempty(commandString) || ~ischar(commandString)
                 reply='';
                 success=false;
-                obj.logMessage(inputname(1),dbstack,6,'maitai.sendReceiveSerial command string not valid.')
+                fprintf('maitai.sendReceiveSerial command string not valid.\n')
                 return
             end
 
@@ -422,9 +419,8 @@ classdef maitai < laserControl.laser & loghandler
             if ~isempty(reply)
                 reply(end)=[];
             else
-                msg=sprintf('Laser serial command %s did not return a reply\n',commandString);
+                fprintf('Laser serial command %s did not return a reply\n',commandString);
                 success=false;
-                obj.logMessage(inputname(1),dbstack,6,msg)
                 return
             end
 
