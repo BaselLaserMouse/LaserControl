@@ -18,8 +18,9 @@ frequency and RF power as wavelength alters.
 * In MATLAB run `laserControl.settings.readSettings` then go to the settings file in the path reported to screen and fill in the missing settings.
 
 ## Example
+Note that to run all the following examples, the manufacturer's control software must first be closed. 
 
-Basic low-level control without a GUI
+Basic low-level control without a GUI:
 ```
 >> MT = laserControl.maitai('COM1'); %substitute your COM port and laser
 >> MT.turnOn
