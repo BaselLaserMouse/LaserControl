@@ -251,11 +251,17 @@ classdef aom_view < laserControl.gui.child_view
             obj.listeners{5}=addlistener(obj.model.hAOM, 'currentExternalBlankingEnabled', 'PostSet', @obj.updateExternalBlankingCheckboxCallback);
             obj.listeners{5}=addlistener(obj.model.hAOM, 'currentExternalChannelEnabled', 'PostSet', @obj.updateExternalChannelCheckboxCallback);
 
-
+            V=ver; % To search for presence of a toolbox
             if ~isempty(obj.parentView)
-                %Place next to laser GUI            
-                iptwindowalign(parentView.hFig, 'right', obj.hFig, 'left');
-                iptwindowalign(parentView.hFig, 'top', obj.hFig, 'top');
+                if any(strcmp({V.Name},'Image Processing Toolbox'))
+                    %Place next to laser GUI            
+                    iptwindowalign(parentView.hFig, 'right', obj.hFig, 'left');
+                    iptwindowalign(parentView.hFig, 'top', obj.hFig, 'top');
+                else
+                    % Hack in case toolbox missing
+                    obj.hFig.Position(1) = parentView.hFig.Position(1)+50;
+                    obj.hFig.Position(2) = parentView.hFig.Position(2)-100;
+                end
             end
         end %constructor
 
@@ -483,9 +489,9 @@ classdef aom_view < laserControl.gui.child_view
                 obj.button_RF_powerTweakMode.String='Leave tweak';
                 if strcmpi(obj.hSI.acqState,'idle')
                     obj.hSI.scanPointBeam
-                    obj.lastBeamPower=obj.hSI.hBeams.powers;
-                    obj.hSI.hBeams.powers=100;
-                    obj.hSI.hBeams.directMode=true;
+                    obj.lastBeamPower=obj.hSI.hBeams.powers(1);
+                    obj.hSI.hBeams.powers(1)=100;
+                    obj.hSI.hBeams.directMode(1)=true;
                 else
                     fprintf('ScanImage not idle. Not entering tweak mode\n')
                     return
@@ -494,8 +500,8 @@ classdef aom_view < laserControl.gui.child_view
                 obj.button_insertRF_power.Enable='off';
                 obj.button_RF_powerTweakMode.String='Enter tweak';
                 obj.hSI.hCycleManager.abort;
-                obj.hSI.hBeams.powers=obj.lastBeamPower;
-                obj.hSI.hBeams.directMode=false;
+                obj.hSI.hBeams.powers(1)=obj.lastBeamPower;
+                obj.hSI.hBeams.directMode(1)=false;
             end
 
         end
