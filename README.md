@@ -9,7 +9,7 @@ Currently supports:
 ## Features
 * The AOM control is linked to laser wavelength and automatically adjusts AOM
 frequency and RF power as wavelength alters. 
-* Laser GUI can be started from the View menu in ScanImage. 
+* Laser GUI can be started from the View menu in ScanImage. (see below)
 * Laser GUI updating is suspended during ScanImage acquisition to avoid pausing display. 
 
 
@@ -64,6 +64,7 @@ For that to work you will need to edit the settings file created in the SETTINGS
 ## AOM GUI usage instructions
 You will need to tweak the RF power by wavelength:
 * Start ScanImage. Run `startLaserControl`.
+* The GUI can be started from the View menu in ScanImage (go to View > Laser control)
 * Ensure External voltage control is checked and external blanking is unchecked (or that you have enabled the AOM with an external TTL line).
 * Press "Enter tweak"
 * Set the laser wavelength to a desired value. Wait for the laser to reach wavelength. 
