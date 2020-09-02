@@ -1,7 +1,7 @@
 function success=loadSettingsFromDisk(obj)
-    if isempty(obj.settingsPath)
-        success=false
-        fprintf('Failed to find settings file at %s\n',obj.settingsPath)
+    if ~exist(obj.settingsPath,'file')
+        success=false;
+        fprintf('Failed to find settings file at path: %s\n',obj.settingsPath)
         return
     end
 
