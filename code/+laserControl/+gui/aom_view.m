@@ -482,6 +482,7 @@ classdef aom_view < laserControl.gui.child_view
                 return
             end
             %Set ScanImage to point mode
+            %TODO (NOTE) -- assumes the beam with the AOM is the first beam
             obj.inRF_powerTweakMode = ~obj.inRF_powerTweakMode;
 
             if obj.inRF_powerTweakMode

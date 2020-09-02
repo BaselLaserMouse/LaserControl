@@ -12,6 +12,7 @@ frequency and RF power as wavelength alters.
 * Laser GUI can be started from the View menu in ScanImage. (see below)
 * Laser GUI updating is suspended during ScanImage acquisition to avoid pausing display. 
 
+NOTE: The package currently assumes just one AOM is connected to ScanImage and that the beam it is controlling is the first beam (only relevant if you have multi-beam setup).
 
 ## Installation
 * Add the `code` directory to your MATLAB path. 
