@@ -261,7 +261,7 @@ classdef aom_view < laserControl.gui.child_view
 
         function delete(obj)
             %Flush the buffer on the AOM (just in case)
-            if isa(obj.model.hAOM.hC,'serial')
+            if isa(obj.model.hAOM.hC,'serial') && isvalid(obj.model.hAOM.hC)
                 flushinput(obj.model.hAOM.hC)
             end
             obj.hSI=[];
