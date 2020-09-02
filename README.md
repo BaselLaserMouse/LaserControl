@@ -14,8 +14,8 @@ frequency and RF power as wavelength alters.
 
 
 ## Installation
-Add the `code` directory to your MATLAB path. 
-
+* Add the `code` directory to your MATLAB path. 
+* In MATLAB run `laserControl.settings.readSettings` then go to the settings file in the path reported to screen and fill in the missing settings.
 
 ## Example
 
